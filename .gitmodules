@@ -1,0 +1,6 @@
+[submodule "libraw/src/main/cpp/LibRaw-cmake"]
+	path = libraw/src/main/cpp/LibRaw-cmake
+	url = https://github.com/LibRaw/LibRaw-cmake.git
+[submodule "libraw/src/main/cpp/LibRaw"]
+	path = libraw/src/main/cpp/LibRaw
+	url = https://github.com/LibRaw/LibRaw.git

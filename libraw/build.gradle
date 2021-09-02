@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    compileSdk 31
+    ndkVersion "22.1.7171670"
+    defaultConfig {
+        //Has to be 24 for 64-bit functions
+        minSdk 24
+        targetSdk 31
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+        externalNativeBuild {
+            cmake {
+                arguments "-DLIBRAW_PATH=${projectDir}/src/main/cpp/LibRaw/",
+                        //Disable OpenMp otherwise we have to add the .so for it manually
+                        "-DENABLE_OPENMP=OFF",
+                        //Disable Jasper (JPEG 2000)
+                        "-DENABLE_JASPER=OFF"
+            }
+        }
+    }
+
+    //Exclude the thread safe version - TODO figure out how not to compile them
+    packagingOptions {
+        exclude 'lib/**/libraw_r.so'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version '3.18.1'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.+'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+}
