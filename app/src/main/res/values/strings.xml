@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AndroidLibraw</string>
+    <string name="app_name">Android LibRaw</string>
     <string name="open_failed">Open Failed</string>
     <string name="map_failed">Read Failed</string>
     <string name="decode_failed">Decode Failed</string>

@@ -14,8 +14,10 @@ import android.widget.ImageView
 import androidx.annotation.StringRes
 import com.homesoft.photo.libraw.LibRaw
 import java.lang.Exception
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
+    private val executor = Executors.newSingleThreadExecutor()
     private lateinit var imageView: ImageView
     lateinit var progressBar: ProgressBar
 
@@ -32,6 +34,11 @@ class MainActivity : AppCompatActivity() {
         imageView = findViewById(R.id.imageView)
         progressBar = findViewById(R.id.progressBar)
         findViewById<View>(R.id.button).setOnClickListener { select() }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdownNow()
     }
 
     private fun select() {
@@ -57,7 +64,7 @@ class MainActivity : AppCompatActivity() {
                 progressBar.visibility = View.VISIBLE
                 data.data?.let { uri ->
                     // Perform operations on the document using its URI.
-                    AsyncTask.SERIAL_EXECUTOR.execute {
+                    executor.execute {
                         try {
                             val pfd = contentResolver.openFileDescriptor(
                                 uri, "r", null
