@@ -1,4 +1,4 @@
-# AndroidLibRaw
+# Android LibRaw
 Another Android LibRaw implementation.  LibRaw is used to render camera raw image files (e.g Nikon NEF, Canon CR2, Sony ARW).   The project contains a sample app that shows a simple implementation.
 
 ## Cloning the Project
