@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.widget.ProgressBar
 import android.widget.Toast
 import android.content.Intent
+import android.graphics.Bitmap
 import android.system.Os
 import android.system.OsConstants
 import android.os.*
@@ -65,24 +66,8 @@ class MainActivity : AppCompatActivity() {
                                 showError(R.string.open_failed);
                                 return@execute
                             }
-                            val fd = pfd.fileDescriptor
-                            val structStat = Os.fstat(fd)
-                            val buffer = Os.mmap(
-                                0,
-                                structStat.st_size,
-                                OsConstants.PROT_READ,
-                                OsConstants.MAP_PRIVATE,
-                                fd,
-                                0
-                            )
-                            if (buffer < 0) {
-                                showError(R.string.map_failed)
-                                return@execute
-                            }
-                            val bitmap =
-                                LibRaw.decodeAsBitmap(buffer, structStat.st_size.toInt(), true)
-                            Os.munmap(buffer, structStat.st_size)
-                            pfd.close()
+                            //val bitmap = decodeMemory(pfd);
+                            val bitmap = decodeFd(pfd);
                             if (bitmap == null) {
                                 showError(R.string.decode_failed)
                             }
@@ -97,6 +82,37 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+    private fun decodeFd(pfd:ParcelFileDescriptor): Bitmap? {
+        val fd = pfd.detachFd()
+        val bitmap = LibRaw.decodeAsBitmap(fd, true)
+        pfd.close()
+        return bitmap
+    }
+
+    /**
+     * Loads the file entirely into
+     * May be faster
+     */
+    private fun decodeMemory(pfd:ParcelFileDescriptor): Bitmap? {
+        val fd = pfd.fileDescriptor
+        val structStat = Os.fstat(fd)
+        val buffer = Os.mmap(
+            0,
+            structStat.st_size,
+            OsConstants.PROT_READ,
+            OsConstants.MAP_PRIVATE,
+            fd,
+            0
+        )
+        if (buffer < 0) {
+            showError(R.string.map_failed)
+            return null;
+        }
+        val bitmap = LibRaw.decodeAsBitmap(buffer, structStat.st_size.toInt(), true)
+        Os.munmap(buffer, structStat.st_size)
+        pfd.close()
+        return bitmap;
     }
 
     companion object {
