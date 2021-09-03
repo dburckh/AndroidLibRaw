@@ -1,5 +1,5 @@
 # AndroidLibRaw
-Another Android LibRaw implementation.  LibRaw is used to render camera raw images files (e.g NEF, CR2, ARW).   Contains a sample app that show a simple implementation.
+Another Android LibRaw implementation.  LibRaw is used to render camera raw image files (e.g Nikon NEF, Canon CR2, Sony ARW).   The project contains a sample app that shows a simple implementation.
 
 ## Cloning the Project
 Because the project has submodule links, it requires an extra parameter.
@@ -10,6 +10,13 @@ A note on submodules:
 
 If you want to new version of the LibRaw or LibRawCMake, you can update the submodules.  Use caution updating the actual LibRaw/LibRawCMake code, updating submodule code can be tricky.
 
+## Building the libraw.aar
+No pre-builts just yet, but you can build the aar from the command line:
+
+`gradlew libraw::assemble`
+
+It usually ends up under ./libraw/build/outputs/aar
+
 ## Benefits
 - Works with modern Android File security constraints (uses FileDescriptors or File paths).
 - Works with Kotlin or Java.
@@ -18,10 +25,10 @@ If you want to new version of the LibRaw or LibRawCMake, you can update the subm
 
 ## Limitations
 - Requires API 24+ (Nougat).
-- Usage NDK 22, (21 is the current default).
+- Uses NDK 22, (21 is the current default).
 - Uses Git Submodules.
-- Currently no pre-built artifacts.  You have to copy the libraw module into your project.
-- Currently no unit tests
+- TODO: Pre-built artifacts.
+- TODO: Unit tests
 
 ## Sources
 Most of the code I did for this was either glue or tweaking of somebody else work.
