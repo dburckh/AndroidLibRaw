@@ -18,6 +18,7 @@ No pre-builts just yet, but you can build the aar from the command line:
 It usually ends up under ./libraw/build/outputs/aar
 
 ## Benefits
+- Decodes the actual raw data.  BitmapFactory shows the embedded JPEG, if available
 - Works with modern Android File security constraints (uses FileDescriptors or File paths).
 - Works with Kotlin or Java.
 - Not a custom version of LibRaw!  Should work with future releases with little or no modification.

@@ -2,6 +2,7 @@
 #include "LibRaw_fd_datastream.h"
 #include <jni.h>
 #include <android/log.h>
+#include <android/bitmap.h>
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
@@ -11,7 +12,7 @@ LibRaw iProcessor;
 libraw_processed_image_t* image=NULL;
 
 union{
-    unsigned int ui32;
+    uint32_t ui32;
     struct{
         unsigned char b0;
         unsigned char b1;
@@ -108,7 +109,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutpu
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHalfSize(JNIEnv* env, jclass,jboolean half_size){
     iProcessor.imgdata.params.half_size=half_size;
 }
-
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCropBox(JNIEnv* env, jclass,jint top, jint left, jint width, int height) {
+    iProcessor.imgdata.params.cropbox[0] = top;
+    iProcessor.imgdata.params.cropbox[1] = left;
+    iProcessor.imgdata.params.cropbox[2] = width;
+    iProcessor.imgdata.params.cropbox[3] = height;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUserMul(JNIEnv* env, jclass,jfloat r,jfloat g1,jfloat b,jfloat g2){
     iProcessor.imgdata.params.user_mul[0]=r;
     iProcessor.imgdata.params.user_mul[1]=g1;
@@ -137,31 +143,34 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCa
     result = env->NewStringUTF(message);
     return result;
 }
-extern "C" JNIEXPORT jintArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_getPixels8(JNIEnv* env, jclass){
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jclass) {
     int error;
     image=decode(&error);
-    if(image!=NULL){
-        int pixels = image->width*image->height;
-        auto* image8 = (unsigned int*)malloc(sizeof(int)*pixels);
-        if(image8==NULL){
-            __android_log_print(ANDROID_LOG_INFO,"libraw","getPixels8 oom");
-            return NULL;
-        }
-        __android_log_print(ANDROID_LOG_INFO,"libraw","getPixels8 image colors %d",image->colors);
-        combine.splitter.b3 = 0xff;
-        for(int i=0,pixel=0; pixel < pixels;pixel++) {
-            combine.splitter.b2 = image->data[i];
-            combine.splitter.b1 = image->data[i+1];
-            combine.splitter.b0 = image->data[i+2];
-            image8[pixel] =	combine.ui32;
-            i+=3;
-        }
-        __android_log_print(ANDROID_LOG_INFO,"libraw","getPixels8 transformed");
-        jintArray jintArray = env->NewIntArray(pixels);
-        env->SetIntArrayRegion(jintArray, 0, pixels, (int*)image8);
-        free(image8);
-        return jintArray;
+    if(image== nullptr) {
+        return nullptr;
     }
-    __android_log_print(ANDROID_LOG_INFO,"libraw","error getPixels8 %d",error);
-    return NULL;
+    jclass clBitmapConfig = env->FindClass("android/graphics/Bitmap$Config");
+    jfieldID fidARGB_8888 = env->GetStaticFieldID(clBitmapConfig, "ARGB_8888",
+                                                  "Landroid/graphics/Bitmap$Config;");
+    jobject ARGB_8888 = env->GetStaticObjectField(clBitmapConfig, fidARGB_8888);
+    jclass clBitmap = env->FindClass("android/graphics/Bitmap");
+    jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
+                                                          "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    jobject bitmap = env->CallStaticObjectMethod(clBitmap, midCreateBitmap, image->width,
+                                                     image->height, ARGB_8888);
+
+    int pixels = image->width*image->height;
+    void *addrPtr;
+    AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
+    auto pixelArr = ((uint32_t *) addrPtr);
+    combine.splitter.b3 = 0xff;
+    for(int i=0,pixel=0; pixel < pixels;pixel++) {
+        combine.splitter.b0 = image->data[i];
+        combine.splitter.b1 = image->data[i+1];
+        combine.splitter.b2 = image->data[i+2];
+        pixelArr[pixel] = combine.ui32;
+        i+=3;
+    }
+    AndroidBitmap_unlockPixels(env,bitmap);
+    return bitmap;
 }

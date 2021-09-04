@@ -24,24 +24,22 @@ public class LibRaw {
         return decodedAsBitmap(result, halfSize);
     }
 
-    public static Bitmap decodeAsBitmap(int fd,boolean halfSize){
+    public static Bitmap decodeAsBitmap(int fd, boolean halfSize){
+        //Log.d("libraw","openFd");
         int result=openFd(fd);
+        //Log.d("libraw","openFd "+result);
         return decodedAsBitmap(result, halfSize);
     }
 
     private static Bitmap decodedAsBitmap(int result, boolean halfSize) {
         setOutputBps(8);
-        setQuality(2);
+        setQuality(12);
+        setAutoWhitebalance(true);
         setHalfSize(halfSize);
-        Bitmap b=null;
-        if(result!=0)
-            return b;
-        int[] pixels=getPixels8();
-        Log.d("libraw","pixels8 "+(pixels!=null));
-        if(pixels!=null){
-            Log.d("libraw","pixels8 size "+getBitmapWidth()+"x"+getBitmapHeight()+" "+pixels.length);
-            b=Bitmap.createBitmap(pixels,getBitmapWidth(),getBitmapHeight(), Bitmap.Config.ARGB_8888);
+        if(result!=0) {
+            return null;
         }
+        final Bitmap b = getBitmap();
         cleanup();
         return b;
     }
@@ -56,7 +54,8 @@ public class LibRaw {
     public static native int getHeight();
     public static native int getOrientation();
     public static native int getColors();
-    public static native int[] getPixels8();
+    public static native Bitmap getBitmap();
+    public static native void setCropBox(int top, int left, int width, int height);
     public static native void setUserMul(float r,float g1,float b,float g2);
     public static native void setAutoWhitebalance(boolean autoWhitebalance);
     public static native void setHighlightMode(int highlightMode);

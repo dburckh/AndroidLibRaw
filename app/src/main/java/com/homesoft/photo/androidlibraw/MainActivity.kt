@@ -5,11 +5,13 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.system.Os
 import android.system.OsConstants
 import android.os.*
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.ImageView
 import androidx.annotation.StringRes
 import com.homesoft.photo.libraw.LibRaw
@@ -18,27 +20,41 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private val executor = Executors.newSingleThreadExecutor()
-    private lateinit var imageView: ImageView
+    private lateinit var raw: ImageView
+    private lateinit var jpeg: ImageView
+    private lateinit var button: Button
     lateinit var progressBar: ProgressBar
 
     private val handler: Handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             Toast.makeText(this@MainActivity, msg.what, Toast.LENGTH_LONG).show()
-            progressBar.visibility = View.INVISIBLE
+            setBusy(false)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        imageView = findViewById(R.id.imageView)
+        raw = findViewById(R.id.raw)
+        jpeg = findViewById(R.id.jpeg)
         progressBar = findViewById(R.id.progressBar)
-        findViewById<View>(R.id.button).setOnClickListener { select() }
+        button = findViewById(R.id.button)
+        button.setOnClickListener { select() }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         executor.shutdownNow()
+    }
+
+    private fun setBusy(busy:Boolean) {
+        if (busy) {
+            button.visibility = View.INVISIBLE
+            progressBar.visibility = View.VISIBLE
+        } else {
+            button.visibility = View.VISIBLE
+            progressBar.visibility = View.INVISIBLE
+        }
     }
 
     private fun select() {
@@ -60,8 +76,9 @@ class MainActivity : AppCompatActivity() {
             // The result data contains a URI for the document or directory that
             // the user selected.
             if (data != null) {
-                imageView.setImageResource(R.drawable.ic_baseline_photo_camera_24)
-                progressBar.visibility = View.VISIBLE
+                raw.setImageResource(R.drawable.ic_baseline_photo_camera_24)
+                jpeg.setImageResource(R.drawable.ic_baseline_photo_camera_24)
+                setBusy(true)
                 data.data?.let { uri ->
                     // Perform operations on the document using its URI.
                     executor.execute {
@@ -73,15 +90,26 @@ class MainActivity : AppCompatActivity() {
                                 showError(R.string.open_failed);
                                 return@execute
                             }
-                            //val bitmap = decodeMemory(pfd);
-                            val bitmap = decodeFd(pfd);
-                            if (bitmap == null) {
-                                showError(R.string.decode_failed)
-                            }
+                            //val bitmap = decodeMemory(pfd)
+                            val jpegBitmap = decodeEmbeddedJpeg(pfd)
+                            val rawBitmap = decodeFd(pfd)
+                            pfd.close()
+//                            if (raw == null || jpeg == null) {
+//                                showError(R.string.decode_failed)
+//                                return@execute
+//                            }
                             runOnUiThread {
-                                progressBar.visibility = View.INVISIBLE
-                                imageView.setImageBitmap(bitmap)
+                                setBusy(false)
+                                raw.setImageBitmap(rawBitmap)
+                                jpeg.setImageBitmap(jpegBitmap)
                             }
+//                            val list = decodeTiles(pfd);
+//                            handler.post { progressBar.visibility = View.INVISIBLE }
+//                            for (i in list.indices) {
+//                                handler.postDelayed ({
+//                                    raw.setImageBitmap(list[i])
+//                                }, i * 250L)
+//                            }
                         } catch (e: Exception) {
                             Log.e("Test", "Error", e)
                         }
@@ -90,10 +118,58 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    /**
+     * Decoded using the JPEG embedded in the RAW
+     */
+    private fun decodeEmbeddedJpeg(pfd:ParcelFileDescriptor):Bitmap? {
+        val options = BitmapFactory.Options()
+        options.inJustDecodeBounds
+        BitmapFactory.decodeFileDescriptor(pfd.fileDescriptor, null, options)
+        Log.d("Test", "Size ${options.outWidth}x${options.outHeight}")
+        if (options.outWidth * options.outHeight > 12_000_000) {
+            options.inSampleSize = 2
+        }
+        val bitmap = BitmapFactory.decodeFileDescriptor(pfd.fileDescriptor, null, options)
+        return bitmap
+    }
+
+
+    private fun decodeTiles(pfd:ParcelFileDescriptor):List<Bitmap> {
+        LibRaw.setQuality(2)
+        val result = unpackFd(pfd)
+        val list = mutableListOf<Bitmap>()
+        val size = 256
+        if (result == 0) {
+            for (i in 0..8) {
+                LibRaw.setCropBox(0, i * size, size, size)
+                val bitmap = LibRaw.getBitmap()
+                Log.d("Test", "Tile: $i ${bitmap.width}x${bitmap.height}")
+                list.add(bitmap)
+            }
+        }
+        pfd.close()
+        LibRaw.cleanup()
+        return list
+    }
+
+    private fun unpackFd(pfd:ParcelFileDescriptor):Int {
+        val fd = pfd.detachFd()
+        val result = LibRaw.openFd(fd)
+        if (result == 0) {
+            LibRaw.setOutputBps(8) //Always 8 for Android
+        }
+        return result;
+    }
+
+    private fun getTile(top:Int, left:Int, width:Int, height:Int):Bitmap {
+        LibRaw.setCropBox(top, left, width, height)
+        return LibRaw.getBitmap()
+    }
+
     private fun decodeFd(pfd:ParcelFileDescriptor): Bitmap? {
         val fd = pfd.detachFd()
         val bitmap = LibRaw.decodeAsBitmap(fd, true)
-        pfd.close()
         return bitmap
     }
 
