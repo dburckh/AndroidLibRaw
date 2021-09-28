@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="Image">
+        <SwitchPreferenceCompat
+            android:defaultValue="@bool/defaultAutoWhiteBalance"
+            app:key="autoWhiteBalance"
+            app:title="Auto White Balance"/>
+
+        <ListPreference
+            android:key="colorSpace"
+            android:defaultValue="@string/defaultColorSpace"
+            app:title="Color Space"
+            android:entries="@array/colorSpaceNames"
+            android:entryValues="@array/colorSpaceValues"/>
+    </PreferenceCategory>
+</PreferenceScreen>

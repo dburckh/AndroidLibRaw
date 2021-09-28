@@ -1,7 +1,11 @@
 package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.util.Log;
+
+import androidx.annotation.RequiresApi;
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/java/com/tssystems/Libraw.java
@@ -11,36 +15,60 @@ public class LibRaw {
     static {
         System.loadLibrary("libraw");
     }
-    private static int COLORSPACE_SRGB=0;
-    private static int COLORSPACE_ADOBE=1;
-    private static int COLORSPACE_WIDE_GAMUT=2;
-    private static int COLORSPACE_PRO_PHOTO=3;
-    public static Bitmap decodeAsBitmap(String file,boolean halfSize){
-        int result=open(file);
-        return decodedAsBitmap(result, halfSize);
-    }
-    public static Bitmap decodeAsBitmap(long buffer, int size,boolean halfSize){
-        int result=openBuffer(buffer, size);
-        return decodedAsBitmap(result, halfSize);
-    }
-
-    public static Bitmap decodeAsBitmap(int fd, boolean halfSize){
-        //Log.d("libraw","openFd");
-        int result=openFd(fd);
-        //Log.d("libraw","openFd "+result);
-        return decodedAsBitmap(result, halfSize);
-    }
-
-    private static Bitmap decodedAsBitmap(int result, boolean halfSize) {
-        setOutputBps(8);
-        setQuality(12);
-        setAutoWhitebalance(true);
-        setHalfSize(halfSize);
-        if(result!=0) {
-            return null;
+    private static int COLORSPACE_RAW=0;
+    private static int COLORSPACE_SRGB=1;
+    private static int COLORSPACE_ADOBE=2;
+    private static int COLORSPACE_WIDE_GAMUT=3;
+    private static int COLORSPACE_PRO_PHOTO=4;
+    public static Bitmap decodeAsBitmap(String file, BitmapFactory.Options options){
+        try {
+            int result = open(file);
+            if (result != 0) {
+                return null;
+            }
+            return decodeAsBitmap(options);
+        } finally {
+            cleanup();
         }
-        final Bitmap b = getBitmap();
-        cleanup();
+    }
+    public static Bitmap decodeAsBitmap(long buffer, int size, BitmapFactory.Options options){
+        try {
+            int result = openBuffer(buffer, size);
+            if(result!=0) {
+                return null;
+            }
+            return decodeAsBitmap(options);
+        } finally {
+            cleanup();
+        }
+    }
+
+    public static Bitmap decodeAsBitmap(int fd, BitmapFactory.Options options){
+        //Log.d("libraw","openFd");
+        try {
+            int result=openFd(fd);
+            if(result!=0) {
+                return null;
+            }
+            return decodeAsBitmap(options);
+        } finally {
+            cleanup();
+        }
+    }
+
+    public static Bitmap decodeAsBitmap(BitmapFactory.Options options) {
+        //setQuality(12);
+        setQuality(3);
+        //Android only supports sRGB
+        setHalfSize(options != null && options.inSampleSize >= 2);
+        final Bitmap b;
+        if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
+            b = getBitmap();
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
+            b = getBitmap16();
+        } else {
+            throw new UnsupportedOperationException("Bitamp.Config must be ARGB_8888 or RGBA_F16");
+        }
         return b;
     }
 
@@ -55,6 +83,8 @@ public class LibRaw {
     public static native int getOrientation();
     public static native int getColors();
     public static native Bitmap getBitmap();
+    @RequiresApi(26)
+    public static native Bitmap getBitmap16();
     public static native void setCropBox(int top, int left, int width, int height);
     public static native void setUserMul(float r,float g1,float b,float g2);
     public static native void setAutoWhitebalance(boolean autoWhitebalance);

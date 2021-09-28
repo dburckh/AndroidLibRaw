@@ -19,7 +19,19 @@ union{
         unsigned char b2;
         unsigned char b3;
     } splitter;
-}combine;
+} argb;
+
+union{
+    uint64_t ui64;
+    struct{
+        __fp16 fp0;
+        __fp16 fp1;
+        __fp16 fp2;
+        __fp16 fp3;
+    } splitter;
+} rgba16;
+
+const float SHORT2FLOAT = 65535.0f;
 
 void cleanup(){
     iProcessor.recycle();
@@ -65,7 +77,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openFd(J
     return result;
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getWidth(JNIEnv* env, jclass){
-    return iProcessor.imgdata.sizes.width;
+    return iProcessor.imgdata.sizes.iwidth;
 
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmapWidth(JNIEnv* env, jclass){
@@ -76,7 +88,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitma
 }
 
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getHeight(JNIEnv* env, jclass){
-    return iProcessor.imgdata.sizes.height;
+    return iProcessor.imgdata.sizes.iheight;
 
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOrientation(JNIEnv* env, jclass){
@@ -143,32 +155,71 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCa
     result = env->NewStringUTF(message);
     return result;
 }
+
+jobject getConfigByName(JNIEnv* env, const char* name) {
+    jclass clBitmapConfig = env->FindClass("android/graphics/Bitmap$Config");
+    jfieldID fidARGB_8888 = env->GetStaticFieldID(clBitmapConfig, name,
+                                                  "Landroid/graphics/Bitmap$Config;");
+    return env->GetStaticObjectField(clBitmapConfig, fidARGB_8888);
+}
+
+jobject createBitmap(JNIEnv* env, jobject config) {
+    jclass clBitmap = env->FindClass("android/graphics/Bitmap");
+    jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
+                                                       "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, image->width,
+                                                 image->height, config);
+}
+
 extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jclass) {
     int error;
+    iProcessor.imgdata.params.output_bps = 8;
     image=decode(&error);
     if(image== nullptr) {
         return nullptr;
     }
-    jclass clBitmapConfig = env->FindClass("android/graphics/Bitmap$Config");
-    jfieldID fidARGB_8888 = env->GetStaticFieldID(clBitmapConfig, "ARGB_8888",
-                                                  "Landroid/graphics/Bitmap$Config;");
-    jobject ARGB_8888 = env->GetStaticObjectField(clBitmapConfig, fidARGB_8888);
-    jclass clBitmap = env->FindClass("android/graphics/Bitmap");
-    jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
-                                                          "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-    jobject bitmap = env->CallStaticObjectMethod(clBitmap, midCreateBitmap, image->width,
-                                                     image->height, ARGB_8888);
+    jobject ARGB_8888 = getConfigByName(env, "ARGB_8888");
+    jobject bitmap = createBitmap(env, ARGB_8888);
 
     int pixels = image->width*image->height;
     void *addrPtr;
     AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
     auto pixelArr = ((uint32_t *) addrPtr);
-    combine.splitter.b3 = 0xff;
+    argb.splitter.b3 = 0xff;
     for(int i=0,pixel=0; pixel < pixels;pixel++) {
-        combine.splitter.b0 = image->data[i];
-        combine.splitter.b1 = image->data[i+1];
-        combine.splitter.b2 = image->data[i+2];
-        pixelArr[pixel] = combine.ui32;
+        argb.splitter.b0 = image->data[i];
+        argb.splitter.b1 = image->data[i + 1];
+        argb.splitter.b2 = image->data[i + 2];
+        pixelArr[pixel] = argb.ui32;
+        i+=3;
+    }
+    AndroidBitmap_unlockPixels(env,bitmap);
+    return bitmap;
+}
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jclass) {
+    int error;
+    iProcessor.imgdata.params.output_bps = 16;
+    image=decode(&error);
+    if(image== nullptr) {
+        return nullptr;
+    }
+    jobject RGBA_F16 = getConfigByName(env, "RGBA_F16");
+    jobject bitmap = createBitmap(env, RGBA_F16);
+
+    int pixels = image->width*image->height;
+    void *addrPtr;
+    AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
+
+    //Convert from RGB (uint16[3]) to RGBA_F16 (__fp16[4])
+    auto pixelArr = ((uint64_t *) addrPtr);
+    rgba16.splitter.fp3 = 1.0f;
+    auto data = (uint16_t*)image->data;
+
+    for(int i=0,pixel=0; pixel < pixels;pixel++) {
+        rgba16.splitter.fp0 = data[i] / SHORT2FLOAT;
+        rgba16.splitter.fp1 = data[i + 1] / SHORT2FLOAT;
+        rgba16.splitter.fp2 = data[i + 2] / SHORT2FLOAT;
+        pixelArr[pixel] = rgba16.ui64;
         i+=3;
     }
     AndroidBitmap_unlockPixels(env,bitmap);

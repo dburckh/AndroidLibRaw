@@ -3,4 +3,16 @@
     <string name="open_failed">Open Failed</string>
     <string name="map_failed">Read Failed</string>
     <string name="decode_failed">Decode Failed</string>
+    <string name="settings">Settings</string>
+
+    <string name="defaultColorSpace">1</string>
+
+    <string-array name="colorSpaceValues">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+    <string-array name="colorSpaceNames">
+        <item>RAW</item>
+        <item>sRGB</item>
+    </string-array>
 </resources>
