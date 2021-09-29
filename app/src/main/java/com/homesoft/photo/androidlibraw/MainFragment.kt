@@ -21,7 +21,7 @@ import com.homesoft.photo.libraw.LibRaw
 import java.lang.Exception
 import java.util.concurrent.Executors
 import androidx.preference.PreferenceManager
-import kotlin.math.min
+import com.homesoft.photo.util.ImageUtil
 
 
 /**
@@ -158,22 +158,14 @@ class MainFragment : Fragment() {
                             }
                             val jpegMatrix = Matrix()
                             jpegBitmap?.let {
-                                val rotation = when (orientation) {
-                                    ExifInterface.ORIENTATION_ROTATE_90 ->
-                                        90f
-                                    ExifInterface.ORIENTATION_ROTATE_180 ->
-                                        180f
-                                    ExifInterface.ORIENTATION_ROTATE_270 ->
-                                        270f
-                                    else -> 0f
-                                }
-                                val scale = viewWidth / if (rotation == 0f || rotation == 180f) {
+                                val degrees = ImageUtil.getDegrees(orientation)
+                                val scale = viewWidth / if (degrees == 0 || degrees == 180) {
                                     jpegBitmap.width.toFloat()
                                 } else {
                                     jpegBitmap.height.toFloat()
                                 }
-                                val rotatePoint = min(jpegBitmap.width, jpegBitmap.height) / 2f
-                                jpegMatrix.setRotate(rotation, rotatePoint, rotatePoint)
+                                val rotationPoint = ImageUtil.getRotationalPoint(it.width, it.height, degrees)
+                                jpegMatrix.setRotate(degrees.toFloat(), rotationPoint.x, rotationPoint.y)
                                 jpegMatrix.postScale(scale, scale)
                             }
                             activity.runOnUiThread {
