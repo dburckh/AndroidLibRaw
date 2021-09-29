@@ -4,8 +4,14 @@
     <string name="map_failed">Read Failed</string>
     <string name="decode_failed">Decode Failed</string>
     <string name="settings">Settings</string>
+    <string name="auto_white_balance">Auto White Balance</string>
+    <string name="color_space">Color Space</string>
+    <string name="open">Open</string>
 
     <string name="defaultColorSpace">1</string>
+    <string name="embedded_jpeg">Embedded JPEG</string>
+    <string name="raw_8_bit">Raw 8 bit</string>
+    <string name="raw_16_bit">Raw 16 bit</string>
 
     <string-array name="colorSpaceValues">
         <item>0</item>

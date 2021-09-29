@@ -18,7 +18,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 style="@style/TextAppearance.AppCompat.Medium"
-                android:text="Embedded JPEG"/>
+                android:text="@string/embedded_jpeg"/>
             <ImageView
                 android:id="@+id/jpeg"
                 android:layout_marginTop="8dp"
@@ -33,7 +33,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 style="@style/TextAppearance.AppCompat.Medium"
-                android:text="Raw 8 bit"/>
+                android:text="@string/raw_8_bit"/>
             <ImageView
                 android:id="@+id/raw"
                 android:layout_marginTop="8dp"
@@ -47,7 +47,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/TextAppearance.AppCompat.Medium"
-                android:text="Raw 16 bit"/>
+                android:text="@string/raw_16_bit"/>
             <ImageView
                 android:id="@+id/hdr"
                 android:layout_width="wrap_content"

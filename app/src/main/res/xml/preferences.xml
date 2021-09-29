@@ -6,12 +6,12 @@
         <SwitchPreferenceCompat
             android:defaultValue="@bool/defaultAutoWhiteBalance"
             app:key="autoWhiteBalance"
-            app:title="Auto White Balance"/>
+            app:title="@string/auto_white_balance"/>
 
         <ListPreference
             android:key="colorSpace"
             android:defaultValue="@string/defaultColorSpace"
-            app:title="Color Space"
+            app:title="@string/color_space"
             android:entries="@array/colorSpaceNames"
             android:entryValues="@array/colorSpaceValues"/>
     </PreferenceCategory>
