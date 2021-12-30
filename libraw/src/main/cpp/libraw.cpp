@@ -4,6 +4,7 @@
 #include <android/log.h>
 #include <android/bitmap.h>
 
+
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
  */
@@ -54,10 +55,21 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_open(JNI
     env->ReleaseStringUTFChars(file, nativeString);
     return result;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuffer(JNIEnv* env, jclass,jlong buffer, jint size){
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBufferPtr(JNIEnv* env, jclass, jlong ptr, jint size){
     cleanup();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","open %d", size);
-    int result=iProcessor.open_buffer((void*)buffer, size);
+    __android_log_print(ANDROID_LOG_INFO,"libraw","openBufferPtr %d", size);
+    int result=iProcessor.open_buffer((void*)ptr, size);
+    if(result==0){
+        result=iProcessor.unpack();
+    }
+    return result;
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuffer(JNIEnv* env, jclass, jbyteArray buffer, jint size){
+    cleanup();
+    __android_log_print(ANDROID_LOG_INFO,"libraw","openBuffer %d", size);
+    auto ptr = env->GetPrimitiveArrayCritical(buffer, nullptr);
+    int result=iProcessor.open_buffer(ptr, size);
+    env->ReleasePrimitiveArrayCritical(buffer, ptr, 0);
     if(result==0){
         result=iProcessor.unpack();
     }
@@ -65,7 +77,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuff
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openFd(JNIEnv* env, jclass, jint fd){
     cleanup();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","open %d", fd);
+    __android_log_print(ANDROID_LOG_INFO,"libraw","openFd %d", fd);
     LibRaw_fd_datastream stream(fd);
     if (!stream.valid()) {
         return LIBRAW_IO_ERROR;
@@ -91,8 +103,11 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getHeigh
     return iProcessor.imgdata.sizes.iheight;
 
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOrientation(JNIEnv* env, jclass){
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOrientation(JNIEnv*, jclass){
     return iProcessor.imgdata.sizes.flip;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOrientation(JNIEnv*, jclass, int orientation){
+    iProcessor.imgdata.params.user_flip = orientation;
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getColors(JNIEnv* env, jclass){
     return iProcessor.imgdata.rawdata.iparams.colors;
@@ -139,8 +154,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma
 }
 libraw_processed_image_t* decode(int* error){
     int dcraw=iProcessor.dcraw_process();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","result dcraw %d",dcraw);
-    return iProcessor.dcraw_make_mem_image(error);
+    if (dcraw == 0) {
+        return iProcessor.dcraw_make_mem_image(error);
+    } else {
+        *error = dcraw;
+        __android_log_print(ANDROID_LOG_WARN,"libraw","result dcraw %d",dcraw);
+        return nullptr;
+    }
 }
 extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCameraList(JNIEnv* env, jclass){
     jstring result;

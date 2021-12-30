@@ -3,7 +3,6 @@ package com.homesoft.photo.libraw;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
-import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
@@ -33,7 +32,7 @@ public class LibRaw {
     }
     public static Bitmap decodeAsBitmap(long buffer, int size, BitmapFactory.Options options){
         try {
-            int result = openBuffer(buffer, size);
+            int result = openBufferPtr(buffer, size);
             if(result!=0) {
                 return null;
             }
@@ -73,7 +72,8 @@ public class LibRaw {
     }
 
     public static native int open(String file);
-    public static native int openBuffer(long offset, int size);
+    public static native int openBufferPtr(long ptr, int size);
+    public static native int openBuffer(byte[] buffer, int size);
     public static native int openFd(int fd);
     public static native void cleanup();
     public static native int getBitmapWidth();
@@ -90,6 +90,7 @@ public class LibRaw {
     public static native void setAutoWhitebalance(boolean autoWhitebalance);
     public static native void setHighlightMode(int highlightMode);
     public static native void setAutoBrightness(boolean autoBrightness);
+    public static native void setOrientation(int orientation);
     public static native void setOutputColorSpace(int colorSpace);
     public static native void setOutputBps(int outputBps);
     public static native void setQuality(int quality);
