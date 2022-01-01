@@ -25,9 +25,7 @@ import com.homesoft.photo.util.ImageUtil
 
 
 /**
- * A simple [Fragment] subclass.
- * Use the [MainFragment.newInstance] factory method to
- * create an instance of this fragment.
+ * The main [Fragment] subclass.
  */
 class MainFragment : Fragment() {
     private val executor = Executors.newSingleThreadExecutor()
@@ -132,29 +130,33 @@ class MainFragment : Fragment() {
                                 uri, "r", null
                             )
                             if (pfd == null) {
-                                showError(R.string.open_failed);
+                                showError(R.string.open_failed)
                                 return@execute
                             }
                             //val bitmap = decodeMemory(pfd)
                             val jpegBitmap = decodeEmbeddedJpeg(pfd, viewWidth)
 
                             val opts = BitmapFactory.Options()
-                            val orientation:Int
                             val rawBitmap: Bitmap?
                             val hdrBitmap: Bitmap?
-                            try {
-                                val result = openFd(pfd, opts, viewWidth)
-                                orientation = LibRaw.getOrientation()
-                                opts.inPreferredConfig = Bitmap.Config.ARGB_8888
-                                rawBitmap = LibRaw.decodeAsBitmap(opts)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    opts.inPreferredConfig = Bitmap.Config.RGBA_F16
-                                    hdrBitmap = LibRaw.decodeAsBitmap(opts)
-                                } else {
-                                    hdrBitmap = null
+                            val libRaw = openFd(pfd, opts, viewWidth)
+                            val orientation: Int
+                            if (libRaw != null) {
+                                libRaw.use {
+                                    orientation = it.orientation
+                                    opts.inPreferredConfig = Bitmap.Config.ARGB_8888
+                                    rawBitmap = it.decodeAsBitmap(opts)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        opts.inPreferredConfig = Bitmap.Config.RGBA_F16
+                                        hdrBitmap = it.decodeAsBitmap(opts)
+                                    } else {
+                                        hdrBitmap = null
+                                    }
                                 }
-                            } finally {
-                                LibRaw.cleanup()
+                            } else {
+                                rawBitmap = null
+                                hdrBitmap = null
+                                orientation = 0
                             }
                             val jpegMatrix = Matrix()
                             jpegBitmap?.let {
@@ -238,36 +240,38 @@ class MainFragment : Fragment() {
 
 
     private fun decodeTiles(pfd: ParcelFileDescriptor):List<Bitmap> {
-        LibRaw.setQuality(2)
-        val result = unpackFd(pfd)
         val list = mutableListOf<Bitmap>()
-        val size = 256
-        if (result == 0) {
+        val libRaw = unpackFd(pfd)
+        pfd.close()
+        libRaw?.use {
+            it.setQuality(2)
+            val size = 256
             for (i in 0..8) {
-                LibRaw.setCropBox(0, i * size, size, size)
-                val bitmap = LibRaw.getBitmap()
+                it.setCropBox(0, i * size, size, size)
+                val bitmap = it.bitmap
                 Log.d("Test", "Tile: $i ${bitmap.width}x${bitmap.height}")
                 list.add(bitmap)
             }
         }
-        pfd.close()
-        LibRaw.cleanup()
         return list
     }
 
-    private fun unpackFd(pfd: ParcelFileDescriptor):Int {
+    private fun unpackFd(pfd: ParcelFileDescriptor):LibRaw? {
         val fd = pfd.detachFd()
-        val result = LibRaw.openFd(fd)
+        val libRaw = LibRaw()
+        val result = libRaw.openFd(fd)
         if (result == 0) {
-            LibRaw.setOutputBps(8) //Always 8 for Android
+            libRaw.setOutputBps(8) //Always 8 for Android
+            return libRaw
         }
-        return result;
+        libRaw.close()
+        return null
     }
 
-    private fun getTile(top:Int, left:Int, width:Int, height:Int): Bitmap {
-        LibRaw.setCropBox(top, left, width, height)
-        return LibRaw.getBitmap()
-    }
+//    private fun getTile(left:Int, top:Int, width:Int, height:Int): Bitmap {
+//        LibRaw.setCropBox(left, top, width, height)
+//        return LibRaw.getBitmap()
+//    }
 
     private fun getSampleSize(viewWidth:Int, imageWidth:Int):Int {
         var sampleSize = 1
@@ -279,21 +283,26 @@ class MainFragment : Fragment() {
         return sampleSize
     }
 
-    private fun openFd(pfd: ParcelFileDescriptor, opts:BitmapFactory.Options, viewWidth:Int):Int {
+    private fun openFd(pfd: ParcelFileDescriptor, opts:BitmapFactory.Options, viewWidth:Int):LibRaw? {
         val context = requireContext()
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val autoWhiteBalance = prefs.getBoolean("autoWhiteBalance", context.resources.getBoolean(R.bool.defaultAutoWhiteBalance))
-        LibRaw.setAutoWhitebalance(autoWhiteBalance);
+        val libRaw = LibRaw()
+        libRaw.setAutoWhiteBalance(autoWhiteBalance)
         val colorSpace = prefs.getString("colorSpace", context.resources.getString(R.string.defaultColorSpace))
-        LibRaw.setOutputColorSpace(colorSpace!!.toInt())
+        libRaw.setOutputColorSpace(colorSpace!!.toInt())
         val fd = pfd.detachFd()
-        val result = LibRaw.openFd(fd)
+        val result = libRaw.openFd(fd)
         pfd.close()
-        val orientation = LibRaw.getOrientation()
-        val width = if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {LibRaw.getHeight()} else {LibRaw.getWidth()}
+        if (result != 0) {
+            libRaw.close()
+            return null
+        }
+        val orientation = libRaw.orientation
+        val width = if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {libRaw.height} else {libRaw.width}
 
         opts.inSampleSize = getSampleSize(viewWidth, width)
-        return result
+        return libRaw
     }
 
     /**
@@ -313,14 +322,14 @@ class MainFragment : Fragment() {
         )
         if (buffer < 0) {
             showError(R.string.map_failed)
-            return null;
+            return null
         }
         val opts = BitmapFactory.Options()
         opts.inSampleSize = 2
         val bitmap = LibRaw.decodeAsBitmap(buffer, structStat.st_size.toInt(), opts)
         Os.munmap(buffer, structStat.st_size)
         pfd.close()
-        return bitmap;
+        return bitmap
     }
 
     companion object {

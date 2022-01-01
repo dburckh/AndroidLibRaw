@@ -9,8 +9,7 @@
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
  */
 
-LibRaw iProcessor;
-libraw_processed_image_t* image=NULL;
+jfieldID contextFieldID = nullptr;
 
 union{
     uint32_t ui32;
@@ -34,128 +33,138 @@ union{
 
 const float SHORT2FLOAT = 65535.0f;
 
-void cleanup(){
-    iProcessor.recycle();
-    if(image!=NULL){
-        libraw_dcraw_clear_mem(image);
-        image=NULL;
+LibRaw* getLibRaw(JNIEnv* env, jobject jLibRaw) {
+    return (LibRaw*)env->GetLongField(jLibRaw, contextFieldID);
+}
+extern "C" JNIEXPORT jlong JNICALL Java_com_homesoft_photo_libraw_LibRaw_init(JNIEnv* env, jobject jLibRaw, int flags){
+    auto libRaw = new LibRaw(flags);
+    if (contextFieldID == nullptr) {
+        contextFieldID = env->GetFieldID(env->GetObjectClass(jLibRaw), "mNativeContext", "J");
     }
+    return reinterpret_cast<jlong>(libRaw);
 }
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_cleanup(JNIEnv* env, jclass){
-    cleanup();
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_recycle(JNIEnv* env, jobject jLibRaw){
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->recycle();
+    delete libRaw;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_open(JNIEnv* env, jclass,jstring file){
-    cleanup();
-    const char* nativeString = env->GetStringUTFChars(file, NULL);
-    __android_log_print(ANDROID_LOG_INFO,"libraw","open %s",nativeString);
-    int result = iProcessor.open_file(nativeString);
-    if(result==0){
-        result=iProcessor.unpack();
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_open(JNIEnv* env, jobject jLibRaw, jstring file){
+    const char* nativeString = env->GetStringUTFChars(file, nullptr);
+    auto libRaw = getLibRaw(env, jLibRaw);
+    int result = libRaw->open_file(nativeString);
+    if(result==0) {
+        result=libRaw->unpack();
     }
     env->ReleaseStringUTFChars(file, nativeString);
     return result;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBufferPtr(JNIEnv* env, jclass, jlong ptr, jint size){
-    cleanup();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","openBufferPtr %d", size);
-    int result=iProcessor.open_buffer((void*)ptr, size);
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBufferPtr(JNIEnv* env, jobject jLibRaw, jlong ptr, jint size) {
+    auto libRaw = getLibRaw(env, jLibRaw);
+    int result=libRaw->open_buffer((void*)ptr, size);
     if(result==0){
-        result=iProcessor.unpack();
+        result=libRaw->unpack();
     }
     return result;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuffer(JNIEnv* env, jclass, jbyteArray buffer, jint size){
-    cleanup();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","openBuffer %d", size);
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuffer(JNIEnv* env, jobject jLibRaw, jbyteArray buffer, jint size){
     auto ptr = env->GetPrimitiveArrayCritical(buffer, nullptr);
-    int result=iProcessor.open_buffer(ptr, size);
+    auto libRaw = getLibRaw(env, jLibRaw);
+    int result=libRaw->open_buffer(ptr, size);
     env->ReleasePrimitiveArrayCritical(buffer, ptr, 0);
     if(result==0){
-        result=iProcessor.unpack();
+        result=libRaw->unpack();
     }
     return result;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openFd(JNIEnv* env, jclass, jint fd){
-    cleanup();
-    __android_log_print(ANDROID_LOG_INFO,"libraw","openFd %d", fd);
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openFd(JNIEnv* env, jobject jLibRaw, jint fd){
     LibRaw_fd_datastream stream(fd);
     if (!stream.valid()) {
         return LIBRAW_IO_ERROR;
     }
-    int result=iProcessor.open_datastream(&stream);
+    auto libRaw = getLibRaw(env, jLibRaw);
+    int result=libRaw->open_datastream(&stream);
     if(result==0){
-        result=iProcessor.unpack();
+        result=libRaw->unpack();
     }
     return result;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getWidth(JNIEnv* env, jclass){
-    return iProcessor.imgdata.sizes.iwidth;
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getWidth(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.sizes.iwidth;
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getHeight(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.sizes.iheight;
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getLeftMargin(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.sizes.left_margin;
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getRightMargin(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.sizes.top_margin;
+}
 
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOrientation(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.sizes.flip;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmapWidth(JNIEnv* env, jclass){
-    return image->width;
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOrientation(JNIEnv* env, jobject jLibRaw, int orientation){
+    getLibRaw(env, jLibRaw)->imgdata.params.user_flip = orientation;
 }
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmapHeight(JNIEnv* env, jclass){
-    return image->height;
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getColors(JNIEnv* env, jobject jLibRaw){
+    return getLibRaw(env, jLibRaw)->imgdata.rawdata.iparams.colors;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUseCameraMatrix(JNIEnv* env, jobject jLibRaw,jint use_camera_matrix){
+    getLibRaw(env, jLibRaw)->imgdata.params.use_camera_matrix=use_camera_matrix;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setQuality(JNIEnv* env, jobject jLibRaw,jint quality){
+    getLibRaw(env, jLibRaw)->imgdata.params.user_qual=quality;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoBrightness(JNIEnv* env, jobject jLibRaw,jboolean autoBrightness){
+    getLibRaw(env, jLibRaw)->imgdata.params.no_auto_bright=!autoBrightness;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoWhiteBalance(JNIEnv* env, jobject jLibRaw,jboolean autoWhiteBalance){
+    getLibRaw(env, jLibRaw)->imgdata.params.use_auto_wb=autoWhiteBalance;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCameraWhiteBalance(JNIEnv* env, jobject jLibRaw,jboolean cameraWhiteBalance){
+    getLibRaw(env, jLibRaw)->imgdata.params.use_camera_wb=cameraWhiteBalance;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputColorSpace(JNIEnv* env, jobject jLibRaw,jint space){
+    getLibRaw(env, jLibRaw)->imgdata.params.output_color=space;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHighlightMode(JNIEnv* env, jobject jLibRaw,jint highlight){
+    getLibRaw(env, jLibRaw)->imgdata.params.highlight=highlight;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputBps(JNIEnv* env, jobject jLibRaw,jint output_bps){
+    getLibRaw(env, jLibRaw)->imgdata.params.output_bps=output_bps;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHalfSize(JNIEnv* env, jobject jLibRaw,jboolean half_size){
+    getLibRaw(env, jLibRaw)->imgdata.params.half_size=half_size;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCropBox(JNIEnv* env, jobject jLibRaw,
+                                                    jint left, jint top, jint width, jint height) {
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->imgdata.params.cropbox[0] = left;
+    libRaw->imgdata.params.cropbox[1] = top;
+    libRaw->imgdata.params.cropbox[2] = width;
+    libRaw->imgdata.params.cropbox[3] = height;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUserMul(JNIEnv* env, jobject jLibRaw,jfloat r,jfloat g1,jfloat b,jfloat g2){
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->imgdata.params.user_mul[0]=r;
+    libRaw->imgdata.params.user_mul[1]=g1;
+    libRaw->imgdata.params.user_mul[2]=b;
+    libRaw->imgdata.params.user_mul[3]=g2;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma(JNIEnv* env, jobject jLibRaw,jdouble g1,jdouble g2){
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->imgdata.params.gamm[0]=g1;
+    libRaw->imgdata.params.gamm[1]=g2;
+}
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw){
+    getLibRaw(env, jLibRaw)->dcraw_process();
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getHeight(JNIEnv* env, jclass){
-    return iProcessor.imgdata.sizes.iheight;
-
-}
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOrientation(JNIEnv*, jclass){
-    return iProcessor.imgdata.sizes.flip;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOrientation(JNIEnv*, jclass, int orientation){
-    iProcessor.imgdata.params.user_flip = orientation;
-}
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getColors(JNIEnv* env, jclass){
-    return iProcessor.imgdata.rawdata.iparams.colors;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUseCameraMatrix(JNIEnv* env, jclass,jint use_camera_matrix){
-    iProcessor.imgdata.params.use_camera_matrix=use_camera_matrix;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setQuality(JNIEnv* env, jclass,jint quality){
-    iProcessor.imgdata.params.user_qual=quality;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoBrightness(JNIEnv* env, jclass,jboolean autoBrightness){
-    iProcessor.imgdata.params.no_auto_bright=!autoBrightness;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoWhitebalance(JNIEnv* env, jclass,jboolean autoWhitebalance){
-    iProcessor.imgdata.params.use_camera_wb=autoWhitebalance;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputColorSpace(JNIEnv* env, jclass,jint space){
-    iProcessor.imgdata.params.output_color=space;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHighlightMode(JNIEnv* env, jclass,jint highlight){
-    iProcessor.imgdata.params.highlight=highlight;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputBps(JNIEnv* env, jclass,jint output_bps){
-    iProcessor.imgdata.params.output_bps=output_bps;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHalfSize(JNIEnv* env, jclass,jboolean half_size){
-    iProcessor.imgdata.params.half_size=half_size;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCropBox(JNIEnv* env, jclass,jint top, jint left, jint width, int height) {
-    iProcessor.imgdata.params.cropbox[0] = top;
-    iProcessor.imgdata.params.cropbox[1] = left;
-    iProcessor.imgdata.params.cropbox[2] = width;
-    iProcessor.imgdata.params.cropbox[3] = height;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUserMul(JNIEnv* env, jclass,jfloat r,jfloat g1,jfloat b,jfloat g2){
-    iProcessor.imgdata.params.user_mul[0]=r;
-    iProcessor.imgdata.params.user_mul[1]=g1;
-    iProcessor.imgdata.params.user_mul[2]=b;
-    iProcessor.imgdata.params.user_mul[3]=g2;
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma(JNIEnv* env, jclass,jdouble g1,jdouble g2){
-    iProcessor.imgdata.params.gamm[0]=g1;
-    iProcessor.imgdata.params.gamm[1]=g2;
-}
-libraw_processed_image_t* decode(int* error){
-    int dcraw=iProcessor.dcraw_process();
+libraw_processed_image_t* decode(LibRaw* libRaw, int* error){
+    int dcraw=libRaw->dcraw_process();
     if (dcraw == 0) {
-        return iProcessor.dcraw_make_mem_image(error);
+        return libRaw->dcraw_make_mem_image(error);
     } else {
         *error = dcraw;
         __android_log_print(ANDROID_LOG_WARN,"libraw","result dcraw %d",dcraw);
@@ -183,23 +192,23 @@ jobject getConfigByName(JNIEnv* env, const char* name) {
     return env->GetStaticObjectField(clBitmapConfig, fidARGB_8888);
 }
 
-jobject createBitmap(JNIEnv* env, jobject config) {
+jobject createBitmap(JNIEnv* env, jobject config, jint width, jint height) {
     jclass clBitmap = env->FindClass("android/graphics/Bitmap");
     jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
                                                        "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-    return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, image->width,
-                                                 image->height, config);
+    return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config);
 }
 
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw) {
+    auto libRaw = getLibRaw(env, jLibRaw);
     int error;
-    iProcessor.imgdata.params.output_bps = 8;
-    image=decode(&error);
+    libRaw->imgdata.params.output_bps = 8;
+    auto image=decode(libRaw, &error);
     if(image== nullptr) {
         return nullptr;
     }
     jobject ARGB_8888 = getConfigByName(env, "ARGB_8888");
-    jobject bitmap = createBitmap(env, ARGB_8888);
+    jobject bitmap = createBitmap(env, ARGB_8888, image->width, image->height);
 
     int pixels = image->width*image->height;
     void *addrPtr;
@@ -214,17 +223,19 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBi
         i+=3;
     }
     AndroidBitmap_unlockPixels(env,bitmap);
+    libraw_dcraw_clear_mem(image);
     return bitmap;
 }
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jobject jLibRaw) {
+    auto libRaw = getLibRaw(env, jLibRaw);
     int error;
-    iProcessor.imgdata.params.output_bps = 16;
-    image=decode(&error);
+    libRaw->imgdata.params.output_bps = 16;
+    auto image=decode(libRaw, &error);
     if(image== nullptr) {
         return nullptr;
     }
     jobject RGBA_F16 = getConfigByName(env, "RGBA_F16");
-    jobject bitmap = createBitmap(env, RGBA_F16);
+    jobject bitmap = createBitmap(env, RGBA_F16, image->width, image->height);
 
     int pixels = image->width*image->height;
     void *addrPtr;
@@ -243,5 +254,6 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBi
         i+=3;
     }
     AndroidBitmap_unlockPixels(env,bitmap);
+    libraw_dcraw_clear_mem(image);
     return bitmap;
 }
