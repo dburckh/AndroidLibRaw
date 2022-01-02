@@ -8,7 +8,7 @@
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
  */
-
+#define WHITE_THRESHOLD 0x2000
 jfieldID contextFieldID = nullptr;
 
 union{
@@ -122,6 +122,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoB
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoWhiteBalance(JNIEnv* env, jobject jLibRaw,jboolean autoWhiteBalance){
     getLibRaw(env, jLibRaw)->imgdata.params.use_auto_wb=autoWhiteBalance;
 }
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setBrightness(JNIEnv* env, jobject jLibRaw,jfloat brightness){
+    getLibRaw(env, jLibRaw)->imgdata.params.bright = brightness;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCameraWhiteBalance(JNIEnv* env, jobject jLibRaw,jboolean cameraWhiteBalance){
     getLibRaw(env, jLibRaw)->imgdata.params.use_camera_wb=cameraWhiteBalance;
 }
@@ -157,6 +160,29 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma
     libRaw->imgdata.params.gamm[0]=g1;
     libRaw->imgdata.params.gamm[1]=g2;
 }
+extern "C" JNIEXPORT jfloat JNICALL Java_com_homesoft_photo_libraw_LibRaw_calcBrightness(JNIEnv* env, jobject jLibRaw){
+    auto libRaw = getLibRaw(env, jLibRaw);
+    //Adapted from mem_image.copy_mem_image()
+    auto histogram = libRaw->get_internal_data_pointer()->output_data.histogram;
+    if (histogram) {
+        int val, total, t_white, c;
+        int perc = libRaw->imgdata.sizes.width * libRaw->imgdata.sizes.height * libRaw->imgdata.params.auto_bright_thr;
+        if (libRaw->get_internal_data_pointer()->internal_output_params.fuji_width)
+            perc /= 2;
+        for (t_white = c = 0; c < libRaw->imgdata.idata.colors; c++)
+        {
+            for (val = WHITE_THRESHOLD, total = 0; --val > 32;)
+                if ((total += histogram[c][val]) >
+                    perc)
+                    break;
+            if (t_white < val)
+                t_white = val;
+        }
+        return WHITE_THRESHOLD / (float)t_white;
+    }
+    return -1;
+}
+
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw){
     getLibRaw(env, jLibRaw)->dcraw_process();
 }

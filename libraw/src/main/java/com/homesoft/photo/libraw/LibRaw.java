@@ -99,6 +99,11 @@ public class LibRaw implements AutoCloseable {
     public native void setCropBox(int left, int top, int width, int height);
     public native void setUserMul(float r,float g1,float b,float g2);
     public native void setAutoWhiteBalance(boolean autoWhiteBalance);
+
+    /**
+     * Brightness factor default = 1.0.  Higher numbers are brighter
+     */
+    public native void setBrightness(float brightness);
     public native void setCameraWhiteBalance(boolean cameraWhiteBalance);
     public native void setHighlightMode(int highlightMode);
     public native void setAutoBrightness(boolean autoBrightness);
@@ -108,6 +113,13 @@ public class LibRaw implements AutoCloseable {
     public native void setQuality(int quality);
     public native void setHalfSize(boolean halfSize);
     public native void setGamma(double g1,double g2);
+
+    /**
+     * Calculate the brightness factor used by LibRaw AutoBrightness
+     * Must be run after the image is created
+     * @return -1 for no data
+     */
+    public native float calcBrightness();
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
     public static native String getCameraList(); // 0 = off, 1 = if auto whitebalance, 3 = always
 
