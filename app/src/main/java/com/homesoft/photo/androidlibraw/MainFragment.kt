@@ -288,6 +288,7 @@ class MainFragment : Fragment() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val autoWhiteBalance = prefs.getBoolean("autoWhiteBalance", context.resources.getBoolean(R.bool.defaultAutoWhiteBalance))
         val libRaw = LibRaw()
+        libRaw.setCameraWhiteBalance(true)
         libRaw.setAutoWhiteBalance(autoWhiteBalance)
         val colorSpace = prefs.getString("colorSpace", context.resources.getString(R.string.defaultColorSpace))
         libRaw.setOutputColorSpace(colorSpace!!.toInt())
