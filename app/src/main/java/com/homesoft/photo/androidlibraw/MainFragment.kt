@@ -248,7 +248,7 @@ class MainFragment : Fragment() {
             val size = 256
             for (i in 0..8) {
                 it.setCropBox(0, i * size, size, size)
-                val bitmap = it.bitmap
+                val bitmap = it.getBitmap(null)
                 Log.d("Test", "Tile: $i ${bitmap.width}x${bitmap.height}")
                 list.add(bitmap)
             }

@@ -67,8 +67,8 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuff
     return result;
 }
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_openBuffer(JNIEnv* env, jobject jLibRaw, jbyteArray buffer, jint size){
-    auto ptr = env->GetPrimitiveArrayCritical(buffer, nullptr);
     auto libRaw = getLibRaw(env, jLibRaw);
+    auto ptr = env->GetPrimitiveArrayCritical(buffer, nullptr);
     int result=libRaw->open_buffer(ptr, size);
     env->ReleasePrimitiveArrayCritical(buffer, ptr, 0);
     if(result==0){
@@ -225,7 +225,7 @@ jobject createBitmap(JNIEnv* env, jobject config, jint width, jint height) {
     return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config);
 }
 
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw, jobject bitmap) {
     auto libRaw = getLibRaw(env, jLibRaw);
     int error;
     libRaw->imgdata.params.output_bps = 8;
@@ -233,8 +233,19 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBi
     if(image== nullptr) {
         return nullptr;
     }
-    jobject ARGB_8888 = getConfigByName(env, "ARGB_8888");
-    jobject bitmap = createBitmap(env, ARGB_8888, image->width, image->height);
+    if (bitmap != nullptr) {
+        AndroidBitmapInfo info;
+        AndroidBitmap_getInfo(env, bitmap, &info);
+        if (info.width != image->width || info.height != image->height ||
+                info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
+            //This bitmap can't be used
+            bitmap = nullptr;
+        }
+    }
+    if (bitmap == nullptr) {
+        jobject ARGB_8888 = getConfigByName(env, "ARGB_8888");
+        bitmap = createBitmap(env, ARGB_8888, image->width, image->height);
+    }
 
     int pixels = image->width*image->height;
     void *addrPtr;

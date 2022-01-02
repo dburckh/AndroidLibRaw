@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 /**
@@ -39,6 +40,10 @@ public class LibRaw implements AutoCloseable {
         mNativeContext = 0;
     }
 
+    public boolean isClosed() {
+        return mNativeContext == 0;
+    }
+
     public Bitmap decodeAsBitmap(String file, BitmapFactory.Options options){
         int result = open(file);
         if (result != 0) {
@@ -71,7 +76,7 @@ public class LibRaw implements AutoCloseable {
         setHalfSize(options != null && options.inSampleSize >= 2);
         final Bitmap b;
         if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
-            b = getBitmap();
+            b = getBitmap(null);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
             b = getBitmap16();
         } else {
@@ -93,7 +98,13 @@ public class LibRaw implements AutoCloseable {
     public native int getRightMargin();
     public native int getOrientation(); // NOT the same as EXIF orientation
     public native int getColors();
-    public native Bitmap getBitmap();
+
+    /**
+     * Get a bitmap for the current image
+     * @param bitmap A bitmap to place to result in
+     * @return
+     */
+    public native Bitmap getBitmap(@Nullable Bitmap bitmap);
     @RequiresApi(26)
     public native Bitmap getBitmap16();
     public native void setCropBox(int left, int top, int width, int height);
