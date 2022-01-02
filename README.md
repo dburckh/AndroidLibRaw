@@ -1,6 +1,32 @@
 # Android LibRaw
 Another Android LibRaw implementation.  LibRaw is used to render camera raw image files (e.g Nikon NEF, Canon CR2, Sony ARW).   The project contains a sample app that shows a simple implementation.
 
+## Using the artifact
+On the surface, this is as easy as:
+
+`implementation 'com.homesoft.android:libraw:2.0.0'`
+
+Unfortunately, you also need to add GitHub Packages to your base project build.gradle, which is kind of a pain.  You'll need to add this to your root project build.gradle.
+```groovy
+allprojects {
+    repositories {
+        ...
+        maven {
+            url = 'https://maven.pkg.github.com/dburckh/AndroidLibRaw'
+            credentials {
+                username = System.getenv("GPR_USER")
+                //This password expires, so it will need to updated in environment
+                password = System.getenv("GPR_API_KEY")
+            }
+        }
+    }
+}
+```
+You'll also need to set your GitHub Id into an environment variable called GPR_USER and put your GitHub token in GPR_API_KEY
+
+Might just be easier to download it.  I won't judge.  :)
+[Link](https://github.com/dburckh/AndroidLibRaw/packages/1172747)
+
 ## Cloning the Project
 Because the project has submodule links, it requires an extra parameter.
 
@@ -28,7 +54,6 @@ It usually ends up under ./libraw/build/outputs/aar
 - Requires API 24+ (Nougat).
 - Uses NDK 22, (21 is the current default).
 - Uses Git Submodules.
-- TODO: Pre-built artifacts.
 - TODO: Unit tests
 
 ## Sources
