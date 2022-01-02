@@ -2,7 +2,6 @@ plugins {
     id 'com.android.library'
     id 'maven-publish'
 }
-
 android {
     compileSdk 31
     //ndkVersion "22.1.7171670"
@@ -50,42 +49,34 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
+def injectDependenciesInPom(pom) {
+    pom.withXml {
+        def dependenciesNode = asNode().appendNode('dependencies')
+
+        configurations.implementation.allDependencies.each { dependency ->
+            if (!dependency.version.equals("unspecified") &&
+                    !dependency.group.equals("unspecified") &&
+                    !dependency.name.equals("unspecified")) {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', dependency.group)
+                dependencyNode.appendNode('artifactId', dependency.name)
+                dependencyNode.appendNode('version', dependency.version)
+            }
+        }
+    }
+}
+//Install to local maven repo
+//gradlew libraw:publishToMavenLocal
 
 publishing {
     publications {
-        bar(MavenPublication) {
-            def myArtifactId = "libraw"
+        libRaw(MavenPublication) {
+            groupId = "${rootProject.ext.groupId}"
+            artifactId = "${rootProject.ext.artifactId}"
+            version "${rootProject.ext.artifactVersion}"
+            artifact("$buildDir/outputs/aar/${rootProject.ext.artifactId}-release.aar")
 
-            groupId 'com.homesoft.android'
-            artifactId myArtifactId
-            version "1.0.1"
-            artifact("$buildDir/outputs/aar/${myArtifactId}-release.aar")
-
-            pom.withXml {
-                final dependenciesNode = asNode().appendNode('dependencies')
-                ext.addDependency = { Dependency dep, String scope ->
-                    if (dep.group == null || dep.version == null || dep.name == null || dep.name == "unspecified")
-                        return
-                    final dependencyNode = dependenciesNode.appendNode('dependency')
-                    dependencyNode.appendNode('groupId', dep.group)
-                    dependencyNode.appendNode('artifactId', dep.name)
-                    dependencyNode.appendNode('version', dep.version)
-                    dependencyNode.appendNode('scope', scope)
-                    if (!dep.transitive) {
-                        final exclusionNode = dependencyNode.appendNode('exclusions').appendNode('exclusion')
-                        exclusionNode.appendNode('groupId', '*')
-                        exclusionNode.appendNode('artifactId', '*')
-                    } else if (!dep.properties.excludeRules.empty) {
-                        final exclusionNode = dependencyNode.appendNode('exclusions').appendNode('exclusion')
-                        dep.properties.excludeRules.each { ExcludeRule rule ->
-                            exclusionNode.appendNode('groupId', rule.group ?: '*')
-                            exclusionNode.appendNode('artifactId', rule.module ?: '*')
-                        }
-                    }
-                }
-                configurations.api.getDependencies().each { dep -> addDependency(dep, "compile") }
-                configurations.implementation.getDependencies().each { dep -> addDependency(dep, "runtime") }
-            }
+            injectDependenciesInPom(pom)
         }
     }
 
@@ -108,6 +99,7 @@ publishing {
         }
     }
 }
+
 dependencies {
     implementation 'androidx.annotation:annotation:1.3.0'
     testImplementation 'junit:junit:4.+'
