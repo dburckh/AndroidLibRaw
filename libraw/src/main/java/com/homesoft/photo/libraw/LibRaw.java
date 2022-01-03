@@ -3,10 +3,13 @@ package com.homesoft.photo.libraw;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.system.ErrnoException;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+
+import java.nio.ByteBuffer;
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/java/com/tssystems/Libraw.java
@@ -44,41 +47,45 @@ public class LibRaw implements AutoCloseable {
         return mNativeContext == 0;
     }
 
-    public Bitmap decodeAsBitmap(String file, BitmapFactory.Options options){
+    public Bitmap decodeBitmap(String file, BitmapFactory.Options options) throws ErrnoException {
         int result = open(file);
         if (result != 0) {
-            return null;
+            throw new ErrnoException("open", result);
         }
-        return decodeAsBitmap(options);
+        return decodeBitmap(options);
     }
-    public static Bitmap decodeAsBitmap(long buffer, int size, BitmapFactory.Options options){
+    public static Bitmap decodeBitmap(long buffer, int size, BitmapFactory.Options options) throws ErrnoException {
         try (final LibRaw libRaw = new LibRaw()){
             int result = libRaw.openBufferPtr(buffer, size);
             if(result!=0) {
-                return null;
+                throw new ErrnoException("openBufferPtr", result);
             }
-            return libRaw.decodeAsBitmap(options);
+            return libRaw.decodeBitmap(options);
         }
     }
 
-    public Bitmap decodeAsBitmap(int fd, BitmapFactory.Options options){
+    public Bitmap decodeBitmap(int fd, BitmapFactory.Options options) throws ErrnoException {
         int result=openFd(fd);
         if(result!=0) {
-            return null;
+            throw new ErrnoException("openFd", result);
         }
-        return decodeAsBitmap(options);
+        return decodeBitmap(options);
     }
 
-    public Bitmap decodeAsBitmap(BitmapFactory.Options options) {
+    public Bitmap decodeBitmap(BitmapFactory.Options options) throws ErrnoException {
         //setQuality(12);
         setQuality(3);
         //Android only supports sRGB
         setHalfSize(options != null && options.inSampleSize >= 2);
+        final int rc = dcrawProcess();
+        if (rc != 0) {
+            throw new ErrnoException("cdrawProccess", rc);
+        }
         final Bitmap b;
         if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
             b = getBitmap(null);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
-            b = getBitmap16();
+            b = getBitmap16(null);
         } else {
             throw new UnsupportedOperationException("Bitamp.Config must be ARGB_8888 or RGBA_F16");
         }
@@ -91,6 +98,8 @@ public class LibRaw implements AutoCloseable {
     public native int openBufferPtr(long ptr, int size);
     public native int openBuffer(byte[] buffer, int size);
     public native int openFd(int fd);
+
+    public native int dcrawProcess();
 
     public native int getWidth();
     public native int getHeight();
@@ -106,7 +115,7 @@ public class LibRaw implements AutoCloseable {
      */
     public native Bitmap getBitmap(@Nullable Bitmap bitmap);
     @RequiresApi(26)
-    public native Bitmap getBitmap16();
+    public native Bitmap getBitmap16(@Nullable Bitmap bitmap);
     public native void setCropBox(int left, int top, int width, int height);
     public native void setUserMul(float r,float g1,float b,float g2);
     public native void setAutoWhiteBalance(boolean autoWhiteBalance);
@@ -130,9 +139,11 @@ public class LibRaw implements AutoCloseable {
      * Must be run after the image is created
      * @return -1 for no data
      */
-    public native float calcBrightness();
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
     public static native String getCameraList(); // 0 = off, 1 = if auto whitebalance, 3 = always
+
+    public native ByteBuffer getColorCurve();
+    public native void setColorCurve(ByteBuffer buffer);
 
     @Override
     protected void finalize() throws Throwable {

@@ -142,13 +142,24 @@ class MainFragment : Fragment() {
                             val libRaw = openFd(pfd, opts, viewWidth)
                             val orientation: Int
                             if (libRaw != null) {
+                                val context = requireContext()
+                                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                                val autoWhiteBalance = prefs.getBoolean("autoWhiteBalance", context.resources.getBoolean(R.bool.defaultAutoWhiteBalance))
+                                libRaw.setCameraWhiteBalance(true)
+                                libRaw.setAutoWhiteBalance(autoWhiteBalance)
+                                val colorSpace = prefs.getString("colorSpace", context.resources.getString(R.string.defaultColorSpace))
+                                libRaw.setOutputColorSpace(colorSpace!!.toInt())
                                 libRaw.use {
                                     orientation = it.orientation
                                     opts.inPreferredConfig = Bitmap.Config.ARGB_8888
-                                    rawBitmap = it.decodeAsBitmap(opts)
+                                    rawBitmap = it.decodeBitmap(opts)
+                                    rawBitmap?.let {
+                                        Log.d("Test", "Bitmap size=${it.width}x${it.height}")
+                                    }
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                         opts.inPreferredConfig = Bitmap.Config.RGBA_F16
-                                        hdrBitmap = it.decodeAsBitmap(opts)
+                                        //Dont' decode the second one, just get a bitmap
+                                        hdrBitmap = it.getBitmap16(null)
                                     } else {
                                         hdrBitmap = null
                                     }
@@ -284,14 +295,7 @@ class MainFragment : Fragment() {
     }
 
     private fun openFd(pfd: ParcelFileDescriptor, opts:BitmapFactory.Options, viewWidth:Int):LibRaw? {
-        val context = requireContext()
-        val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-        val autoWhiteBalance = prefs.getBoolean("autoWhiteBalance", context.resources.getBoolean(R.bool.defaultAutoWhiteBalance))
         val libRaw = LibRaw()
-        libRaw.setCameraWhiteBalance(true)
-        libRaw.setAutoWhiteBalance(autoWhiteBalance)
-        val colorSpace = prefs.getString("colorSpace", context.resources.getString(R.string.defaultColorSpace))
-        libRaw.setOutputColorSpace(colorSpace!!.toInt())
         val fd = pfd.detachFd()
         val result = libRaw.openFd(fd)
         pfd.close()
@@ -327,7 +331,7 @@ class MainFragment : Fragment() {
         }
         val opts = BitmapFactory.Options()
         opts.inSampleSize = 2
-        val bitmap = LibRaw.decodeAsBitmap(buffer, structStat.st_size.toInt(), opts)
+        val bitmap = LibRaw.decodeBitmap(buffer, structStat.st_size.toInt(), opts)
         Os.munmap(buffer, structStat.st_size)
         pfd.close()
         return bitmap

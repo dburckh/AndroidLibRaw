@@ -21,7 +21,7 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-        libraw.cpp LibRaw_fd_datastream.cpp)
+        libraw.cpp LibRaw_fd_datastream.cpp AndroidLibRaw.h AndroidLibRaw.cpp)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
