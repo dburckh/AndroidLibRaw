@@ -136,12 +136,16 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma
     libRaw->imgdata.params.gamm[1]=g2;
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw){
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw, jobject colorCurve){
     auto libRaw = getLibRaw(env, jLibRaw);
 
     int rc = libRaw->dcraw_process();
     if (rc == 0) {
-        libRaw->buildColorCurve();
+        if (colorCurve == nullptr) {
+            libRaw->buildColorCurve();
+        } else {
+            libRaw->setColorCurve(env, colorCurve);
+        }
     }
     return rc;
 }

@@ -92,6 +92,10 @@ public class LibRaw implements AutoCloseable {
         return b;
     }
 
+    public int dcrawProcess() {
+        return dcrawProcess(null);
+    }
+
     public native long init(int flags);
     public native void recycle();
     public native int open(String file);
@@ -99,7 +103,7 @@ public class LibRaw implements AutoCloseable {
     public native int openBuffer(byte[] buffer, int size);
     public native int openFd(int fd);
 
-    public native int dcrawProcess();
+    public native int dcrawProcess(@Nullable ByteBuffer colorCurve);
 
     public native int getWidth();
     public native int getHeight();

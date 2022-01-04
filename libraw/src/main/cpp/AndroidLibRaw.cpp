@@ -22,6 +22,10 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* conf
         __android_log_print(ANDROID_LOG_WARN,"libraw","expected 3 colors, got %i",P1.colors);
         return nullptr;
     }
+    if (imgdata.image == nullptr) {
+        __android_log_write(ANDROID_LOG_WARN,"libraw","No image data.  Did you call dcrawProcess?");
+        return nullptr;
+    }
     int width = imgdata.sizes.iwidth;
     int height = imgdata.sizes.iheight;
 
@@ -98,13 +102,13 @@ void AndroidLibRaw::buildColorCurve() {
 jobject AndroidLibRaw::getColorCurve(JNIEnv* env) {
     auto size = sizeof imgdata.color.curve;
     void* c = malloc(size);
-    memcpy(imgdata.color.curve, c, size);
+    memcpy(c, imgdata.color.curve, size);
     return env->NewDirectByteBuffer(c, size);
 }
 void AndroidLibRaw::setColorCurve(JNIEnv *env, jobject byteBuffer) {
     auto c = env->GetDirectBufferAddress(byteBuffer);
     auto size = env->GetDirectBufferCapacity(byteBuffer);
-    memcpy(c, imgdata.color.curve, size);
+    memcpy(imgdata.color.curve, c, size);
 }
 
 jobject AndroidLibRaw::getConfigByName(JNIEnv* env, const char* name) {
