@@ -14,12 +14,19 @@ public:
     jobject getBitmap16(JNIEnv* env, jobject bitmap);
     jobject getColorCurve(JNIEnv* env);
     void setColorCurve(JNIEnv* env, jobject byteBuffer);
+    void setCaptureScaleMul(bool capture);
     void buildColorCurve();
-
+    int dcrawProcessForced(JNIEnv* env, jobject colorCurve);
     static jobject getConfigByName(JNIEnv* env, const char* name);
     static jobject createBitmap(JNIEnv *env, jobject config, jint width, jint height);
+
+protected:
+    void scale_colors_loop(float scale_mul[4]) override;
 private:
+    float* mScaleMul = nullptr;
     jobject doGetBitmap(JNIEnv* env, jobject bitmap, const char* configName, int32_t configType, const std::function<void (void* bitmapPtr, int const pixels)>& _copy);
+
+    static void preScaleCallback(void *libRaw);
 };
 
 

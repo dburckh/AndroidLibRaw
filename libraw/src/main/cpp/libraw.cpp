@@ -94,6 +94,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setQuali
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoBrightness(JNIEnv* env, jobject jLibRaw,jboolean autoBrightness){
     getLibRaw(env, jLibRaw)->imgdata.params.no_auto_bright=!autoBrightness;
 }
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoScale(JNIEnv* env, jobject jLibRaw,jboolean autoScale){
+    getLibRaw(env, jLibRaw)->imgdata.params.no_auto_scale=!autoScale;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setAutoWhiteBalance(JNIEnv* env, jobject jLibRaw,jboolean autoWhiteBalance){
     getLibRaw(env, jLibRaw)->imgdata.params.use_auto_wb=autoWhiteBalance;
 }
@@ -123,6 +126,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCropB
     libRaw->imgdata.params.cropbox[2] = width;
     libRaw->imgdata.params.cropbox[3] = height;
 }
+
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUserBlack(JNIEnv* env, jobject jLibRaw, jint userBack) {
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->imgdata.params.user_black = userBack;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setUserMul(JNIEnv* env, jobject jLibRaw,jfloat r,jfloat g1,jfloat b,jfloat g2){
     auto libRaw = getLibRaw(env, jLibRaw);
     libRaw->imgdata.params.user_mul[0]=r;
@@ -136,18 +144,25 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma
     libRaw->imgdata.params.gamm[1]=g2;
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw, jobject colorCurve){
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcess(JNIEnv* env, jobject jLibRaw){
     auto libRaw = getLibRaw(env, jLibRaw);
 
     int rc = libRaw->dcraw_process();
     if (rc == 0) {
-        if (colorCurve == nullptr) {
-            libRaw->buildColorCurve();
-        } else {
-            libRaw->setColorCurve(env, colorCurve);
-        }
+        libRaw->buildColorCurve();
     }
     return rc;
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_dcrawProcessForced(JNIEnv* env, jobject jLibRaw, jobject colorCurve){
+    auto libRaw = getLibRaw(env, jLibRaw);
+
+    int rc = libRaw->dcrawProcessForced(env, colorCurve);
+    return rc;
+}
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCaptureScaleMul(JNIEnv* env, jobject jLibRaw, jboolean capture){
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->setCaptureScaleMul(capture);
 }
 
 extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCameraList(JNIEnv* env, jclass){
@@ -175,8 +190,4 @@ extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBi
 extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getColorCurve(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
     return libRaw->getColorCurve(env);
-}
-extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setColorCurve(JNIEnv* env, jobject jLibRaw, jobject byteBuffer) {
-    auto libRaw = getLibRaw(env, jLibRaw);
-    libRaw->setColorCurve(env, byteBuffer);
 }

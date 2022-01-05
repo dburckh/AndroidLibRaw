@@ -125,6 +125,51 @@ jobject AndroidLibRaw::createBitmap(JNIEnv* env, jobject config, jint width, jin
     return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config);
 }
 
+void AndroidLibRaw::setCaptureScaleMul(bool capture) {
+    if (capture) {
+        if (mScaleMul == nullptr) {
+            mScaleMul = new float[4];
+        }
+    } else {
+        if (mScaleMul) {
+            free(mScaleMul);
+            mScaleMul = nullptr;
+        }
+    }
+}
+
+void AndroidLibRaw::scale_colors_loop(float scale_mul[4]) {
+    if (mScaleMul && scale_mul != mScaleMul) {
+        //store this info off for later user
+        memcpy(mScaleMul, scale_mul, sizeof (float[4]));
+    }
+    LibRaw::scale_colors_loop(scale_mul);
+}
+
+void AndroidLibRaw::preScaleCallback(void* ctx) {
+    auto androidLibRaw = (AndroidLibRaw*)ctx;
+    if (androidLibRaw->mScaleMul) {
+        androidLibRaw->scale_colors_loop(androidLibRaw->mScaleMul);
+    }
+}
+
+/**
+ * Dirty little hack to force LibRaw to use the same white balance from a previous dcraw_process
+ * @param env
+ * @param colorCurve
+ * @return
+ */
+jint AndroidLibRaw::dcrawProcessForced(JNIEnv* env, jobject colorCurve) {
+    callbacks.pre_scalecolors_cb = preScaleCallback;
+    imgdata.params.no_auto_scale=true;
+    int rc = dcraw_process();
+    imgdata.params.no_auto_scale=false;
+    callbacks.pre_scalecolors_cb = nullptr;
+    if (rc == 0) {
+        setColorCurve(env, colorCurve);
+    }
+    return rc;
+}
 
 
 

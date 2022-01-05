@@ -6,6 +6,7 @@ import android.os.Build;
 import android.system.ErrnoException;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
@@ -92,25 +93,26 @@ public class LibRaw implements AutoCloseable {
         return b;
     }
 
-    public int dcrawProcess() {
-        return dcrawProcess(null);
-    }
-
     public native long init(int flags);
+
+    /**
+     * Calls recycle and deletes LibRaw
+     */
     public native void recycle();
     public native int open(String file);
     public native int openBufferPtr(long ptr, int size);
     public native int openBuffer(byte[] buffer, int size);
     public native int openFd(int fd);
 
-    public native int dcrawProcess(@Nullable ByteBuffer colorCurve);
+    public native int dcrawProcess();
+    public native int dcrawProcessForced(@NonNull ByteBuffer colorCurve);
 
+    public native int getColors();
     public native int getWidth();
     public native int getHeight();
     public native int getLeftMargin();
     public native int getRightMargin();
     public native int getOrientation(); // NOT the same as EXIF orientation
-    public native int getColors();
 
     /**
      * Get a bitmap for the current image
@@ -121,7 +123,8 @@ public class LibRaw implements AutoCloseable {
     @RequiresApi(26)
     public native Bitmap getBitmap16(@Nullable Bitmap bitmap);
     public native void setCropBox(int left, int top, int width, int height);
-    public native void setUserMul(float r,float g1,float b,float g2);
+    public native void setAutoScale(boolean autoScale);
+    public native void setAutoBrightness(boolean autoBrightness);
     public native void setAutoWhiteBalance(boolean autoWhiteBalance);
 
     /**
@@ -129,25 +132,21 @@ public class LibRaw implements AutoCloseable {
      */
     public native void setBrightness(float brightness);
     public native void setCameraWhiteBalance(boolean cameraWhiteBalance);
+    public native void setCaptureScaleMul(boolean capture);
+    public native void setGamma(double g1,double g2);
+    public native void setHalfSize(boolean halfSize);
     public native void setHighlightMode(int highlightMode);
-    public native void setAutoBrightness(boolean autoBrightness);
     public native void setOrientation(int orientation);
     public native void setOutputColorSpace(int colorSpace);
     public native void setOutputBps(int outputBps);
     public native void setQuality(int quality);
-    public native void setHalfSize(boolean halfSize);
-    public native void setGamma(double g1,double g2);
-
-    /**
-     * Calculate the brightness factor used by LibRaw AutoBrightness
-     * Must be run after the image is created
-     * @return -1 for no data
-     */
+    public native void setUserBlack(int userBlack);
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
+    public native void setUserMul(float r,float g1,float b,float g2);
+
     public static native String getCameraList(); // 0 = off, 1 = if auto whitebalance, 3 = always
 
     public native ByteBuffer getColorCurve();
-    public native void setColorCurve(ByteBuffer buffer);
 
     @Override
     protected void finalize() throws Throwable {
