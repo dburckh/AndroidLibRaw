@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.drawable.BitmapDrawable
-import android.media.ExifInterface
 import android.os.*
 import android.system.Os
 import android.system.OsConstants
@@ -23,11 +22,12 @@ import java.util.concurrent.Executors
 import androidx.preference.PreferenceManager
 import com.homesoft.photo.util.ImageUtil
 
-
 /**
  * The main [Fragment] subclass.
  */
 class MainFragment : Fragment() {
+    private val TAG: String = MainFragment::class.java.simpleName
+
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var raw: ImageView
     private lateinit var hdr: ImageView
@@ -40,7 +40,6 @@ class MainFragment : Fragment() {
             setBusy(false)
         }
     }
-
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -171,7 +170,12 @@ class MainFragment : Fragment() {
                             }
                             val jpegMatrix = Matrix()
                             jpegBitmap?.let {
-                                val degrees = ImageUtil.getDegrees(orientation)
+                                var degrees = LibRaw.toDegrees(orientation)
+                                //Sometimes the embedded is pre-rotated
+                                if (jpegBitmap.height > jpegBitmap.width && (degrees == 90 || degrees == 270)) {
+                                    Log.w(TAG,"Image appears to be pre-rotated, overriding rotation")
+                                    degrees = 0
+                                }
                                 val scale = viewWidth / if (degrees == 0 || degrees == 180) {
                                     jpegBitmap.width.toFloat()
                                 } else {
@@ -304,7 +308,7 @@ class MainFragment : Fragment() {
             return null
         }
         val orientation = libRaw.orientation
-        val width = if (orientation == ExifInterface.ORIENTATION_ROTATE_90 || orientation == ExifInterface.ORIENTATION_ROTATE_270) {libRaw.height} else {libRaw.width}
+        val width = if (orientation == LibRaw.ROTATE_90 || orientation == LibRaw.ROTATE_270) {libRaw.height} else {libRaw.width}
 
         opts.inSampleSize = getSampleSize(viewWidth, width)
         return libRaw

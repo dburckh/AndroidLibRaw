@@ -20,9 +20,14 @@ public class LibRaw implements AutoCloseable {
     static {
         System.loadLibrary("libraw");
     }
-    public static int USE_CAMERA_MATRIX_NEVER = 0;
-    public static int USE_CAMERA_MATRIX_DEFAULT = 1; //Use camera matrix if useCameraWhiteBalance is set
-    public static int USE_CAMERA_MATRIX_ALWAYS = 3;
+    public static final int ROTATE_0 = 0;
+    public static final int ROTATE_180 = 3;
+    public static final int ROTATE_270 = 5;
+    public static final int ROTATE_90 = 6;
+    public static final int ROTATE_DEFAULT = -1;
+    public static final int USE_CAMERA_MATRIX_NEVER = 0;
+    public static final int USE_CAMERA_MATRIX_DEFAULT = 1; //Use camera matrix if useCameraWhiteBalance is set
+    public static final int USE_CAMERA_MATRIX_ALWAYS = 3;
 
     private static int COLORSPACE_RAW=0;
     private static int COLORSPACE_SRGB=1;
@@ -31,6 +36,20 @@ public class LibRaw implements AutoCloseable {
     private static int COLORSPACE_PRO_PHOTO=4;
 
     long mNativeContext;
+
+    public static int toDegrees(final int orientation) {
+        switch (orientation) {
+            case ROTATE_0:
+                break;
+            case ROTATE_270:
+                return 270;
+            case ROTATE_90:
+                return 90;
+            case ROTATE_180:
+                return 180;
+        }
+        return 0;
+    }
 
     public LibRaw() {
         this(0);
