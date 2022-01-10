@@ -16,7 +16,7 @@ buildscript {
 ext {
     groupId = 'com.homesoft.android'
     artifactId = 'libraw'
-    artifactVersion = '2.0.1'
+    artifactVersion = '2.0.2'
 }
 task clean(type: Delete) {
     delete rootProject.buildDir
