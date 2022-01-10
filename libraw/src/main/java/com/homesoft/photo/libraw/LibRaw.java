@@ -126,6 +126,9 @@ public class LibRaw implements AutoCloseable {
     public native int dcrawProcess();
     public native int dcrawProcessForced(@NonNull ByteBuffer colorCurve);
 
+    public native void clearCancelFlag();
+    public native void setCancelFlag();
+
     public native int getColors();
     public native int getWidth();
     public native int getHeight();
