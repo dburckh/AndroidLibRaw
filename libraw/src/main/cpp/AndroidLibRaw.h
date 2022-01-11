@@ -12,6 +12,7 @@ public:
     AndroidLibRaw(unsigned int flags = LIBRAW_OPTIONS_NONE);
     jobject getBitmap(JNIEnv* env, jobject bitmap);
     jobject getBitmap16(JNIEnv* env, jobject bitmap);
+    jboolean drawSurface(JNIEnv* env, jobject surface);
     jobject getColorCurve(JNIEnv* env);
     void setColorCurve(JNIEnv* env, jobject byteBuffer);
     void setCaptureScaleMul(bool capture);

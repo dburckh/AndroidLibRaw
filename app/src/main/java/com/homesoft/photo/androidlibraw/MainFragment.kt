@@ -156,7 +156,7 @@ class MainFragment : Fragment() {
                                         Log.d("Test", "Bitmap size=${it.width}x${it.height}")
                                     }
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                        opts.inPreferredConfig = Bitmap.Config.RGBA_F16
+
                                         //Dont' decode the second one, just get a bitmap
                                         hdrBitmap = it.getBitmap16(null)
                                     } else {

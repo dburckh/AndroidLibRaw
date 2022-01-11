@@ -3,8 +3,9 @@
 //
 
 #include "AndroidLibRaw.h"
-#include <android/log.h>
+#include "Utils.h"
 #include <android/bitmap.h>
+#include <android/native_window_jni.h>
 
 #define P1 imgdata.idata
 #define S  imgdata.sizes
@@ -13,17 +14,34 @@
 #define IO libraw_internal_data.internal_output_params
 #define SHORT2FLOAT 65535.0f;
 #define COLORS 3
+#define PIXEL8_LOOP \
+    for (int c=0;c<COLORS;c++) { \
+    *ptr = imgdata.color.curve[imgdata.image[pixel][c]] >> 8; \
+        ptr++; \
+    }  \
+
+#define PIXEL8A_LOOP PIXEL8_LOOP \
+    *ptr = 0xff; \
+    ptr++; \
+
+#define PIXEL16_LOOP \
+    for (int c = 0; c < COLORS; c++) { \
+        *ptr = imgdata.color.curve[imgdata.image[pixel][c]] / SHORT2FLOAT; \
+        ptr++; \
+    } \
+    *ptr = 1.0; \
+    ptr++; \
 
 AndroidLibRaw::AndroidLibRaw(unsigned int flags):LibRaw(flags) {
 }
 
 jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* configName, int32_t configType, const std::function<void (void*, int const)>& _copy) {
     if (imgdata.idata.colors != COLORS) {
-        __android_log_print(ANDROID_LOG_WARN,"libraw","expected 3 colors, got %i",P1.colors);
+        __android_log_print(ANDROID_LOG_ERROR,"libraw","expected 3 colors, got %i", P1.colors);
         return nullptr;
     }
     if (imgdata.image == nullptr) {
-        __android_log_write(ANDROID_LOG_WARN,"libraw","No image data.  Did you call dcrawProcess?");
+        __android_log_write(ANDROID_LOG_ERROR,"libraw","No image data.  Did you call dcrawProcess?");
         return nullptr;
     }
     int width = imgdata.sizes.iwidth;
@@ -51,28 +69,18 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* conf
 
 jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmap) {
     return doGetBitmap(env, bitmap, "ARGB_8888", ANDROID_BITMAP_FORMAT_RGBA_8888, [this](void* bitmapPtr, int const pixels) {
-        auto pixelPtr = (unsigned char*)bitmapPtr;
+        auto ptr = (unsigned char*)bitmapPtr;
         for(int pixel=0; pixel < pixels;pixel++) {
-            for (int c=0;c<COLORS;c++) {
-                *pixelPtr = imgdata.color.curve[imgdata.image[pixel][c]] >> 8;
-                pixelPtr++;
-            }
-            *pixelPtr = 0xff;
-            pixelPtr++;
+            PIXEL8A_LOOP
         }
     });
 }
 
 jobject AndroidLibRaw::getBitmap16(JNIEnv *env, jobject bitmap) {
     return doGetBitmap(env, bitmap, "RGBA_F16", ANDROID_BITMAP_FORMAT_RGBA_F16, [this](void* bitmapPtr, int const pixels) {
-        auto pixelPtr = (__fp16 *) bitmapPtr;
+        auto ptr = (__fp16 *) bitmapPtr;
         for (int pixel = 0; pixel < pixels; pixel++) {
-            for (int c = 0; c < COLORS; c++) {
-                *pixelPtr = imgdata.color.curve[imgdata.image[pixel][c]] / SHORT2FLOAT;
-                pixelPtr++;
-            }
-            *pixelPtr = 1.0;
-            pixelPtr++;
+            PIXEL16_LOOP
         }
     });
 }
@@ -169,6 +177,44 @@ jint AndroidLibRaw::dcrawProcessForced(JNIEnv* env, jobject colorCurve) {
         setColorCurve(env, colorCurve);
     }
     return rc;
+}
+
+jboolean AndroidLibRaw::drawSurface(JNIEnv *env, jobject surface) {
+    auto nativeWindow = ANativeWindow_fromSurface(env, surface);
+    ANativeWindow_Buffer buffer;
+    RET_CHECK(ANativeWindow_lock(nativeWindow, &buffer, nullptr));
+    int pixels = buffer.width * buffer.height;
+    if (buffer.format == AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM) {
+        int skip = (buffer.stride - buffer.width) * 3;
+        auto ptr = static_cast<unsigned char *>(buffer.bits);
+        int pixel = 0;
+        while (pixel < pixels) {
+            int rowEnd = pixel + buffer.width;
+            while (pixel < rowEnd) {
+                PIXEL8_LOOP
+                pixel++;
+            }
+            ptr += skip;
+        }
+// This code works, but I'm not sure why we would ever use it
+//    } else if (buffer.format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM) {
+//        int skip = (buffer.stride - buffer.width) * 4;
+//        auto ptr = static_cast<unsigned char *>(buffer.bits);
+//        int pixel = 0;
+//        while (pixel < pixels) {
+//            int rowEnd = pixel + buffer.width;
+//            while (pixel < rowEnd) {
+//                PIXEL8A_LOOP
+//                pixel++;
+//            }
+//            ptr += skip;
+//        }
+    } else {
+        return -1;
+    }
+    RET_CHECK(ANativeWindow_unlockAndPost(nativeWindow));
+    ANativeWindow_release(nativeWindow);
+    return 0;
 }
 
 

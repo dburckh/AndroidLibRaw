@@ -2,9 +2,14 @@ package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.PixelFormat;
+import android.hardware.HardwareBuffer;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.Build;
 import android.system.ErrnoException;
 import android.util.Log;
+import android.view.Surface;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -103,7 +108,11 @@ public class LibRaw implements AutoCloseable {
         }
         final Bitmap b;
         if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
-            b = getBitmap(null);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                b = getHardwareBitmap();
+            } else {
+                b = getBitmap(null);
+            }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
             b = getBitmap16(null);
         } else {
@@ -144,6 +153,33 @@ public class LibRaw implements AutoCloseable {
     public native Bitmap getBitmap(@Nullable Bitmap bitmap);
     @RequiresApi(26)
     public native Bitmap getBitmap16(@Nullable Bitmap bitmap);
+
+    private native int drawSurface(Surface surface);
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private Bitmap getHardwareBitmap(int format) {
+        final ImageReader imageReader = ImageReader.newInstance(getWidth(), getHeight(), format,
+                1, HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE | HardwareBuffer.USAGE_GPU_COLOR_OUTPUT);
+        final Surface surface = imageReader.getSurface();
+        final Image image;
+        final Bitmap bitmap;
+        if (drawSurface(surface) == 0 && (image = imageReader.acquireNextImage()) != null) {
+            final HardwareBuffer hardwareBuffer = image.getHardwareBuffer();
+            bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
+            image.close();
+        } else {
+            bitmap = null;
+        }
+        imageReader.close();
+        return bitmap;
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    public Bitmap getHardwareBitmap() {
+        //return getHardwareBitmap(PixelFormat.RGBA_8888);
+        return getHardwareBitmap(PixelFormat.RGB_888);
+    }
+
     public native void setCropBox(int left, int top, int width, int height);
     public native void setAutoScale(boolean autoScale);
     public native void setAutoBrightness(boolean autoBrightness);
