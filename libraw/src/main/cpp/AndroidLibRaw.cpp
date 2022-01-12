@@ -3,7 +3,7 @@
 //
 
 #include "AndroidLibRaw.h"
-#include "Utils.h"
+#include "common.h"
 #include <android/bitmap.h>
 #include <android/native_window_jni.h>
 
@@ -32,10 +32,18 @@
     *ptr = 1.0; \
     ptr++; \
 
+jfieldID contextFieldID = nullptr;
+
+AndroidLibRaw* getLibRaw(JNIEnv* env, jobject jLibRaw) {
+    if (contextFieldID == nullptr) {
+        contextFieldID = env->GetFieldID(env->GetObjectClass(jLibRaw), "mNativeContext", "J");
+    }
+    return (AndroidLibRaw*)env->GetLongField(jLibRaw, contextFieldID);
+}
 AndroidLibRaw::AndroidLibRaw(unsigned int flags):LibRaw(flags) {
 }
 
-jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* configName, int32_t configType, const std::function<void (void*, int const)>& _copy) {
+jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, const char* configName, int32_t configType, const std::function<void (void*, int const)>& _copy) {
     if (imgdata.idata.colors != COLORS) {
         __android_log_print(ANDROID_LOG_ERROR,"libraw","expected 3 colors, got %i", P1.colors);
         return nullptr;
@@ -47,19 +55,8 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* conf
     int width = imgdata.sizes.iwidth;
     int height = imgdata.sizes.iheight;
 
-    if (bitmap != nullptr) {
-        AndroidBitmapInfo info;
-        AndroidBitmap_getInfo(env, bitmap, &info);
-        if (info.width != width || info.height != height ||
-            info.format != configType) {
-            //This bitmap can't be used
-            bitmap = nullptr;
-        }
-    }
-    if (bitmap == nullptr) {
-        jobject bitmapConfig = getConfigByName(env, configName);
-        bitmap = createBitmap(env, bitmapConfig, width, height);
-    }
+    jobject bitmapConfig = getConfigByName(env, configName);
+    jobject bitmap = createBitmap(env, bitmapConfig, width, height);
     void* addrPtr;
     AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
     _copy(addrPtr, width * height);
@@ -67,8 +64,8 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmap, const char* conf
     return bitmap;
 }
 
-jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmap) {
-    return doGetBitmap(env, bitmap, "ARGB_8888", ANDROID_BITMAP_FORMAT_RGBA_8888, [this](void* bitmapPtr, int const pixels) {
+jobject AndroidLibRaw::getBitmap(JNIEnv* env) {
+    return doGetBitmap(env, "ARGB_8888", ANDROID_BITMAP_FORMAT_RGBA_8888, [this](void* bitmapPtr, int const pixels) {
         auto ptr = (unsigned char*)bitmapPtr;
         for(int pixel=0; pixel < pixels;pixel++) {
             PIXEL8A_LOOP
@@ -76,8 +73,8 @@ jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmap) {
     });
 }
 
-jobject AndroidLibRaw::getBitmap16(JNIEnv *env, jobject bitmap) {
-    return doGetBitmap(env, bitmap, "RGBA_F16", ANDROID_BITMAP_FORMAT_RGBA_F16, [this](void* bitmapPtr, int const pixels) {
+jobject AndroidLibRaw::getBitmap16(JNIEnv *env) {
+    return doGetBitmap(env, "RGBA_F16", ANDROID_BITMAP_FORMAT_RGBA_F16, [this](void* bitmapPtr, int const pixels) {
         auto ptr = (__fp16 *) bitmapPtr;
         for (int pixel = 0; pixel < pixels; pixel++) {
             PIXEL16_LOOP
@@ -179,42 +176,47 @@ jint AndroidLibRaw::dcrawProcessForced(JNIEnv* env, jobject colorCurve) {
     return rc;
 }
 
-jboolean AndroidLibRaw::drawSurface(JNIEnv *env, jobject surface) {
-    auto nativeWindow = ANativeWindow_fromSurface(env, surface);
-    ANativeWindow_Buffer buffer;
-    RET_CHECK(ANativeWindow_lock(nativeWindow, &buffer, nullptr));
-    int pixels = buffer.width * buffer.height;
-    if (buffer.format == AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM) {
-        int skip = (buffer.stride - buffer.width) * 3;
-        auto ptr = static_cast<unsigned char *>(buffer.bits);
-        int pixel = 0;
+int AndroidLibRaw::copyImage(uint32_t width, uint32_t height, uint32_t stride, uint32_t format, void *bufferPtr) {
+    auto pixels = width * height;
+
+    if (format == AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM) {
+        auto skip = (stride - width) * 3;
+        auto ptr = static_cast<unsigned char *>(bufferPtr);
+        uint32_t pixel = 0;
         while (pixel < pixels) {
-            int rowEnd = pixel + buffer.width;
+            auto rowEnd = pixel + width;
             while (pixel < rowEnd) {
                 PIXEL8_LOOP
                 pixel++;
             }
             ptr += skip;
         }
-// This code works, but I'm not sure why we would ever use it
-//    } else if (buffer.format == AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM) {
-//        int skip = (buffer.stride - buffer.width) * 4;
-//        auto ptr = static_cast<unsigned char *>(buffer.bits);
-//        int pixel = 0;
-//        while (pixel < pixels) {
-//            int rowEnd = pixel + buffer.width;
-//            while (pixel < rowEnd) {
-//                PIXEL8A_LOOP
-//                pixel++;
-//            }
-//            ptr += skip;
-//        }
-    } else {
-        return -1;
+        return 0;
+    } else if (format == AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT) {
+        auto skip = (stride - width) * 4;
+        auto ptr = static_cast<__fp16 *>(bufferPtr);
+        uint32_t pixel = 0;
+        while (pixel < pixels) {
+            auto rowEnd = pixel + width;
+            while (pixel < rowEnd) {
+                PIXEL16_LOOP
+                pixel++;
+            }
+            ptr += skip;
+        }
+        return 0;
     }
+    return -1;
+}
+
+jboolean AndroidLibRaw::drawSurface(JNIEnv *env, jobject surface) {
+    auto nativeWindow = ANativeWindow_fromSurface(env, surface);
+    ANativeWindow_Buffer buffer;
+    RET_CHECK(ANativeWindow_lock(nativeWindow, &buffer, nullptr));
+    RET_CHECK(copyImage(buffer.width, buffer.height, buffer.stride, buffer.format, buffer.bits));
     RET_CHECK(ANativeWindow_unlockAndPost(nativeWindow));
     ANativeWindow_release(nativeWindow);
-    return 0;
+    return true;
 }
 
 

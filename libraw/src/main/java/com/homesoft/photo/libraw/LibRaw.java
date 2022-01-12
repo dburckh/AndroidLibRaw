@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 
 public class LibRaw implements AutoCloseable {
     static {
-        System.loadLibrary("libraw");
+        System.loadLibrary("androidraw");
     }
     public static final int ROTATE_0 = 0;
     public static final int ROTATE_180 = 3;
@@ -41,6 +41,15 @@ public class LibRaw implements AutoCloseable {
     private static int COLORSPACE_PRO_PHOTO=4;
 
     long mNativeContext;
+
+    public static LibRaw newInstance() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            //Works with 26, but we can't do anything useful until 29.
+            return new LibRaw26();
+        } else {
+            return new LibRaw();
+        }
+    }
 
     public static int toDegrees(final int orientation) {
         switch (orientation) {
@@ -108,13 +117,9 @@ public class LibRaw implements AutoCloseable {
         }
         final Bitmap b;
         if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                b = getHardwareBitmap();
-            } else {
-                b = getBitmap(null);
-            }
+            return getBitmap();
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
-            b = getBitmap16(null);
+            b = getBitmap16();
         } else {
             throw new UnsupportedOperationException("Bitamp.Config must be ARGB_8888 or RGBA_F16");
         }
@@ -147,38 +152,11 @@ public class LibRaw implements AutoCloseable {
 
     /**
      * Get a bitmap for the current image
-     * @param bitmap A bitmap to place to result in
      * @return
      */
-    public native Bitmap getBitmap(@Nullable Bitmap bitmap);
+    public native Bitmap getBitmap();
     @RequiresApi(26)
-    public native Bitmap getBitmap16(@Nullable Bitmap bitmap);
-
-    private native int drawSurface(Surface surface);
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private Bitmap getHardwareBitmap(int format) {
-        final ImageReader imageReader = ImageReader.newInstance(getWidth(), getHeight(), format,
-                1, HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE | HardwareBuffer.USAGE_GPU_COLOR_OUTPUT);
-        final Surface surface = imageReader.getSurface();
-        final Image image;
-        final Bitmap bitmap;
-        if (drawSurface(surface) == 0 && (image = imageReader.acquireNextImage()) != null) {
-            final HardwareBuffer hardwareBuffer = image.getHardwareBuffer();
-            bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
-            image.close();
-        } else {
-            bitmap = null;
-        }
-        imageReader.close();
-        return bitmap;
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    public Bitmap getHardwareBitmap() {
-        //return getHardwareBitmap(PixelFormat.RGBA_8888);
-        return getHardwareBitmap(PixelFormat.RGB_888);
-    }
+    public native Bitmap getBitmap16();
 
     public native void setCropBox(int left, int top, int width, int height);
     public native void setAutoScale(boolean autoScale);

@@ -2,20 +2,12 @@
 #include "LibRaw_fd_datastream.h"
 #include <jni.h>
 #include <android/log.h>
-
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
  */
-jfieldID contextFieldID = nullptr;
 
-AndroidLibRaw* getLibRaw(JNIEnv* env, jobject jLibRaw) {
-    return (AndroidLibRaw*)env->GetLongField(jLibRaw, contextFieldID);
-}
 extern "C" JNIEXPORT jlong JNICALL Java_com_homesoft_photo_libraw_LibRaw_init(JNIEnv* env, jobject jLibRaw, int flags){
     auto libRaw = new AndroidLibRaw(flags);
-    if (contextFieldID == nullptr) {
-        contextFieldID = env->GetFieldID(env->GetObjectClass(jLibRaw), "mNativeContext", "J");
-    }
     return reinterpret_cast<jlong>(libRaw);
 }
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_recycle(JNIEnv* env, jobject jLibRaw){
@@ -185,13 +177,13 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCa
     return result;
 }
 
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw, jobject bitmap) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
-    return libRaw->getBitmap(env, bitmap);
+    return libRaw->getBitmap(env);
 }
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jobject jLibRaw, jobject bitmap) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
-    return libRaw->getBitmap16(env, bitmap);
+    return libRaw->getBitmap16(env);
 }
 
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_drawSurface(JNIEnv* env, jobject jLibRaw, jobject surface) {

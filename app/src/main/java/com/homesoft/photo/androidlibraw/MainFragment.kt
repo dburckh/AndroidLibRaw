@@ -158,7 +158,7 @@ class MainFragment : Fragment() {
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
                                         //Dont' decode the second one, just get a bitmap
-                                        hdrBitmap = it.getBitmap16(null)
+                                        hdrBitmap = it.bitmap16
                                     } else {
                                         hdrBitmap = null
                                     }
@@ -263,7 +263,7 @@ class MainFragment : Fragment() {
             val size = 256
             for (i in 0..8) {
                 it.setCropBox(0, i * size, size, size)
-                val bitmap = it.getBitmap(null)
+                val bitmap = it.bitmap
                 Log.d("Test", "Tile: $i ${bitmap.width}x${bitmap.height}")
                 list.add(bitmap)
             }
@@ -299,7 +299,7 @@ class MainFragment : Fragment() {
     }
 
     private fun openFd(pfd: ParcelFileDescriptor, opts:BitmapFactory.Options, viewWidth:Int):LibRaw? {
-        val libRaw = LibRaw()
+        val libRaw = LibRaw.newInstance()
         val fd = pfd.detachFd()
         val result = libRaw.openFd(fd)
         pfd.close()

@@ -6,7 +6,8 @@ android {
     compileSdk 31
     //ndkVersion "22.1.7171670"
     //Required for __fp16 support
-    ndkVersion "23.0.7599858"
+    //ndkVersion "23.0.7599858"
+    ndkVersion "23.1.7779620"
     defaultConfig {
         //Has to be 24 for 64-bit functions
         minSdk 24
@@ -19,10 +20,8 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DLIBRAW_PATH=${projectDir}/src/main/cpp/LibRaw/",
-                        //Disable OpenMp otherwise we have to add the .so for it manually
-                        "-DENABLE_OPENMP=OFF",
-                        //Disable Jasper (JPEG 2000)
-                        "-DENABLE_JASPER=OFF"
+                //Hack to allow building LibRaw26
+                "-DANDROID_PLATFORM=26"
             }
         }
     }
@@ -31,7 +30,6 @@ android {
     packagingOptions {
         exclude 'lib/**/libraw_r.so'
     }
-
     buildTypes {
         release {
             minifyEnabled false
