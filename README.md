@@ -63,6 +63,11 @@ Most of the code I did for this was either glue or tweaking of somebody else wor
 - [LibRaw-Android](https://github.com/TSGames/Libraw-Android) Ground breaking "glue" code I borrowed heavily from.
 
 ### Change Log
+2.0.3
+- Removed recycle from getBitmap().  Let me know if you feel it's necessary
+- Added LibRaw.newInstance() factory to get the proper version of LibRaw (LibRaw or LibRaw26)
+- For Android Q+, now creates RGB_888 (not RGBA_8888) and RGBA_F16 Bitmap.Config.Hardware Bitmaps.  Create a new LibRaw() directly if you don't want Hardware bitmaps for some reason.
+
 2.0.2
 - Fix rotation issues
 - Add cancel functions
