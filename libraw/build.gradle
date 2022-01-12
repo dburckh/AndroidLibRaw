@@ -20,8 +20,14 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DLIBRAW_PATH=${projectDir}/src/main/cpp/LibRaw/",
-                //Hack to allow building LibRaw26
-                "-DANDROID_PLATFORM=26"
+                        //Hack to allow building LibRaw26
+                        "-DANDROID_PLATFORM=26",
+                        // You can manually include openMP by renameing jniLibsBak to jniLibs and commenting the entry below.
+                        // I noticed not performance increase, so I disabled it to reduce APK size
+                        // Also, the openMP build is broken, so it seems like it's fate.
+                        "-DENABLE_OPENMP=OFF",
+                        //Disable Jasper (JPEG 2000)
+                        "-DENABLE_JASPER=OFF"
             }
         }
     }

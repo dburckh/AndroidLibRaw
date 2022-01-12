@@ -49,13 +49,6 @@ target_link_libraries( # Specifies the target library.
                        # included in the NDK.
                        ${log-lib} )
 add_subdirectory(LibRaw-cmake)
-# You can manually include openMP by renameing jniLibsBak to jniLibs and commenting the entry below.
-# I noticed not performance increase, so I disabled it to reduce APK size
-# Also, the openMP build is broken, so it seems like it's fate.
-set(ENABLE_OPENMP OFF CACHE BOOL "DBB")
-# Disable Jasper (JPEG 2000)
-set(ENABLE_JASPER OFF CACHE BOOL "DBB")
-
 add_subdirectory(androidraw26)
 
 target_link_libraries(androidraw libraw::libraw)
