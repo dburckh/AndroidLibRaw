@@ -17,7 +17,9 @@ public class LibRaw26 extends LibRaw {
         final HardwareBuffer hardwareBuffer = HardwareBuffer.create(getWidth(), getHeight(), format,
                 1, HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE| HardwareBuffer.USAGE_CPU_WRITE_RARELY);
         if (drawHardwareBuffer(hardwareBuffer)) {
-            return Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
+            final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
+            hardwareBuffer.close();
+            return bitmap;
         } else {
             return null;
         }
