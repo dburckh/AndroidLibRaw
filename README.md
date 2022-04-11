@@ -4,7 +4,7 @@ Another Android LibRaw implementation.  LibRaw is used to render camera raw imag
 ## Using the artifact
 On the surface, this is as easy as:
 
-`implementation 'com.homesoft.android:libraw:2.0.2'`
+`implementation 'com.homesoft.android:libraw:2.0.4'`
 
 Unfortunately, you also need to add GitHub Packages to your base project build.gradle, which is kind of a pain.  You'll need to add this to your root project build.gradle.
 ```groovy
@@ -63,6 +63,10 @@ Most of the code I did for this was either glue or tweaking of somebody else wor
 - [LibRaw-Android](https://github.com/TSGames/Libraw-Android) Ground breaking "glue" code I borrowed heavily from.
 
 ### Change Log
+2.0.4
+- Add Proguard rules
+- Update Libraw/Libraw-CMake
+
 2.0.3
 - Removed recycle from getBitmap().  Let me know if you feel it's necessary
 - Added LibRaw.newInstance() factory to get the proper version of LibRaw (LibRaw or LibRaw26)
