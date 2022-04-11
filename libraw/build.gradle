@@ -12,8 +12,6 @@ android {
         //Has to be 24 for 64-bit functions
         minSdk 24
         targetSdk 31
-        versionCode 1
-        versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
