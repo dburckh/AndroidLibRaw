@@ -179,6 +179,7 @@ public class LibRaw implements AutoCloseable {
     public native void setUserBlack(int userBlack);
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
     public native void setUserMul(float r,float g1,float b,float g2);
+    public native void setAutomaticMaximumCalculation(float automaticMaximumCalculation); // 0.0 = off, 0.75 = default
 
     public static native String getCameraList(); // 0 = off, 1 = if auto whitebalance, 3 = always
 
