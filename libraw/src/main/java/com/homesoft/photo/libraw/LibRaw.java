@@ -2,17 +2,11 @@ package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.PixelFormat;
-import android.hardware.HardwareBuffer;
-import android.media.Image;
-import android.media.ImageReader;
 import android.os.Build;
 import android.system.ErrnoException;
 import android.util.Log;
-import android.view.Surface;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import java.nio.ByteBuffer;
@@ -179,6 +173,18 @@ public class LibRaw implements AutoCloseable {
     public native void setUserBlack(int userBlack);
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
     public native void setUserMul(float r,float g1,float b,float g2);
+
+    /**
+     * @param automaticMaximumCalculation 0.0 = off, 0.75 = default
+     */
+    public native void setAutomaticMaximumCalculation(float automaticMaximumCalculation);
+
+    /**
+     * @param enabled turns this on or off
+     * @param shift exposure shift in linear scale. Usable range from 0.25 (2-stop darken) to 8.0 (3-stop lighter). Default: 1.0 (no exposure shift).
+     * @param preservation preserve highlights when lighten the image. Usable range from 0.0 (no preservation) to 1.0 (full preservation). 0.0 is the default value.
+     */
+    public native void setExposureCorrectionBeforeDemosaic(boolean enabled, float shift, float preservation);
 
     public static native String getCameraList(); // 0 = off, 1 = if auto whitebalance, 3 = always
 
