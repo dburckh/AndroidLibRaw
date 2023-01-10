@@ -144,6 +144,14 @@ Java_com_homesoft_photo_libraw_LibRaw_setAutomaticMaximumCalculation(JNIEnv *env
     libRaw->imgdata.params.adjust_maximum_thr = automaticMaximumCalculation;
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_homesoft_photo_libraw_LibRaw_setExposureCorrectionBeforeDemosaic(JNIEnv *env, jobject jLibRaw, jboolean enabled, jfloat shift, jfloat preservation) {
+    auto libRaw = getLibRaw(env, jLibRaw);
+    libRaw->imgdata.params.exp_correc = enabled ? 1 : 0;
+    libRaw->imgdata.params.exp_shift = shift;
+    libRaw->imgdata.params.exp_preser = preservation;
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setGamma(JNIEnv* env, jobject jLibRaw,jdouble g1,jdouble g2){
     auto libRaw = getLibRaw(env, jLibRaw);
     libRaw->imgdata.params.gamm[0]=g1;
