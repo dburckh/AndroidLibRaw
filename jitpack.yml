@@ -1,0 +1,2 @@
+before_install:
+  - git clone --recurse-submodules https://github.com/dburckh/AndroidLibRaw.git
