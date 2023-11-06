@@ -1,3 +1,5 @@
 before_install:
-  - yes | $ANDROID_HOME/tools/bin/sdkmanager "cmake;3.18.1"
+  - yes | sdkmanager "cmake;3.18.1"
   - git clone --recurse-submodules https://github.com/dburckh/AndroidLibRaw.git
+env:
+  SDKMANAGER_OPTS: "--add-modules java.xml.bind"
