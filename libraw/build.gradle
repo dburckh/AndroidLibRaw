@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
 }
 android {
-    compileSdk 31
+    compileSdk 34
     //ndkVersion "22.1.7171670"
     //Required for __fp16 support
     //ndkVersion "23.0.7599858"
@@ -11,7 +11,7 @@ android {
     defaultConfig {
         //Has to be 24 for 64-bit functions
         minSdk 24
-        targetSdk 31
+        targetSdk 34
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -29,11 +29,13 @@ android {
             }
         }
     }
+    packagingOptions {
+        jniLibs {
+            excludes += ['lib/**/libraw_r.so']
+        }
+    }
 
     //Exclude the thread safe version - TODO figure out how not to compile them
-    packagingOptions {
-        exclude 'lib/**/libraw_r.so'
-    }
     buildTypes {
         release {
             minifyEnabled false
@@ -47,64 +49,34 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-}
-def injectDependenciesInPom(pom) {
-    pom.withXml {
-        def dependenciesNode = asNode().appendNode('dependencies')
+    namespace 'com.homesoft.photo.libraw'
 
-        configurations.implementation.allDependencies.each { dependency ->
-            if (!dependency.version.equals("unspecified") &&
-                    !dependency.group.equals("unspecified") &&
-                    !dependency.name.equals("unspecified")) {
-                def dependencyNode = dependenciesNode.appendNode('dependency')
-                dependencyNode.appendNode('groupId', dependency.group)
-                dependencyNode.appendNode('artifactId', dependency.name)
-                dependencyNode.appendNode('version', dependency.version)
-            }
-        }
+    publishing {
+        singleVariant("release")
     }
 }
+
 //Install to local maven repo
 //gradlew libraw:publishToMavenLocal
-
 publishing {
     publications {
-        libRaw(MavenPublication) {
-            groupId = "${rootProject.ext.groupId}"
-            artifactId = "${rootProject.ext.artifactId}"
+        media3avi(MavenPublication) {
+            setGroupId "${rootProject.ext.groupId}"
+            setArtifactId "${rootProject.ext.artifactId}"
             version "${rootProject.ext.artifactVersion}"
-            artifact("$buildDir/outputs/aar/${rootProject.ext.artifactId}-release.aar")
 
-            injectDependenciesInPom(pom)
-        }
-    }
-
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            /** Configure path of your package repository on Github
-             ** Replace GITHUB_USERID with your/organisation Github userID
-             ** and REPOSITORY with the repository name on GitHub
-             */
-            url = uri("https://maven.pkg.github.com/dburckh/AndroidLibRaw")
-            credentials {
-                /** Create github.properties in root project folder file with
-                 ** gpr.usr=GITHUB_USER_ID & gpr.key=PERSONAL_ACCESS_TOKEN
-                 ** Set env variable GPR_USER & GPR_API_KEY if not adding a properties file**/
-
-                username = System.getenv("GPR_USER")
-                password = System.getenv("GPR_API_KEY")
+            afterEvaluate {
+                from components.release
             }
         }
     }
 }
 
 dependencies {
-    implementation 'androidx.annotation:annotation:1.3.0'
+    implementation 'androidx.annotation:annotation:1.7.0'
     testImplementation 'junit:junit:4.+'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
 }
