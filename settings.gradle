@@ -13,6 +13,6 @@ dependencyResolutionManagement {
         maven { url 'https://jitpack.io' }
     }
 }
-rootProject.name = "AndroidLibraw"
+rootProject.name = "AndroidLibRaw"
 include ':app'
 include ':libraw'
