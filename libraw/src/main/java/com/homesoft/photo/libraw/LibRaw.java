@@ -10,6 +10,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/java/com/tssystems/Libraw.java
@@ -35,6 +38,34 @@ public class LibRaw implements AutoCloseable {
     private static int COLORSPACE_PRO_PHOTO=4;
 
     long mNativeContext;
+
+    public static class CameraWhiteBalance {
+        public final float temp;
+        public final float r;
+        public final float g;
+        public final float b;
+        public final float g1;
+        public CameraWhiteBalance(float temp, float r, float g, float b, float g1) {
+            this.temp = temp;
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.g1 = g1;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            CameraWhiteBalance that = (CameraWhiteBalance) o;
+            return Float.compare(temp, that.temp) == 0 && Float.compare(r, that.r) == 0 && Float.compare(g, that.g) == 0 && Float.compare(b, that.b) == 0 && Float.compare(g1, that.g1) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(temp, r, g, b, g1);
+        }
+    }
 
     public static LibRaw newInstance() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -120,6 +151,37 @@ public class LibRaw implements AutoCloseable {
         return b;
     }
 
+    /**
+     * Get a list of out-of-camera white balance multipliers. To set these, call setUserMul
+     * with the r, g, b, g1 values. Results may have color temp in kelvin attached or not,
+     * depending on what data is included in the raw file.
+     *
+     * @return a list of {@link CameraWhiteBalance} objects representing the camera's preset white
+     * balance values
+     */
+    public List<CameraWhiteBalance> getCameraWhiteBalanceMultipliers() {
+        final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
+        final ArrayList<CameraWhiteBalance> wbList = new ArrayList<>();
+        if (tempCoefficients != null) {
+            for (final float[] row : tempCoefficients) {
+                if (row[0] != 0) {
+                    wbList.add(new CameraWhiteBalance(row[0], row[1], row[2], row[3], row[4]));
+                }
+            }
+        }
+        final int[][] noTempCoefficients = getWhiteBalanceCoefficients();
+        if (noTempCoefficients != null) {
+            for (final int[] row : noTempCoefficients) {
+                // Only skip if _all_ values are zero
+                if (!(row[0] == 0 && row[1] == 0 && row[2] == 0 && row[3] == 0)) {
+                    wbList.add(new CameraWhiteBalance(0, (float) row[0], (float)  row[1], (float) row[2], (float) row[3]));
+                }
+            }
+        }
+
+        return wbList;
+    }
+
     public native long init(int flags);
 
     /**
@@ -144,6 +206,10 @@ public class LibRaw implements AutoCloseable {
     public native int getRightMargin();
     public native int getOrientation(); // NOT the same as EXIF orientation
 
+    public native float[] getCameraMul();
+
+    public native float[][] getWhiteBalanceCoefficientsWithTemps();
+    public native int[][] getWhiteBalanceCoefficients();
     /**
      * Get a bitmap for the current image
      * @return
