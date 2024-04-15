@@ -92,7 +92,7 @@ extern "C" JNIEXPORT jobjectArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_
     auto outerArray = env->NewObjectArray(arraySize, floatArrayClass, initial);
     for (int i=0; i < arraySize; i++) {
         auto floatArray = env->NewFloatArray(subarraySize);
-        // color temp, r, g, b, g1
+        // color temp, r, g1, b, g2
         env->SetFloatArrayRegion(floatArray, 0, subarraySize, libRaw->imgdata.color.WBCT_Coeffs[i]);
         env->SetObjectArrayElement(outerArray, i, floatArray);
         env->DeleteLocalRef(floatArray);

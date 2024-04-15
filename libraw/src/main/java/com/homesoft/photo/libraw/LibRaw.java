@@ -15,7 +15,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/java/com/tssystems/Libraw.java
@@ -128,7 +127,7 @@ public class LibRaw implements AutoCloseable {
 
     /**
      * getAvailableWhiteBalanceCoefficients filters out unfilled values in getWhiteBalanceCoefficients
-     * @return an array of non-zero white balance coefficients
+     * @return a List of non-zero white balance coefficients
      */
     public List<int[]> getAvailableWhiteBalanceCoefficients() {
         final ArrayList<int[]> wbList = new ArrayList<>();
@@ -148,7 +147,7 @@ public class LibRaw implements AutoCloseable {
     /**
      * getAvailableWhiteBalanceCtCoefficients filters out unfilled values in getWhiteBalanceCoefficients
      * and places them in a map.
-     * @return a map of color temperature in kelvin to white balance coefficients
+     * @return a Map of color temperature in kelvin to white balance coefficients
      */
     public Map<Float, float[]> getAvailableWhiteBalanceCtCoefficients() {
         final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
