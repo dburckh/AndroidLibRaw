@@ -11,7 +11,10 @@ import androidx.annotation.RequiresApi;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -38,34 +41,6 @@ public class LibRaw implements AutoCloseable {
     private static int COLORSPACE_PRO_PHOTO=4;
 
     long mNativeContext;
-
-    public static class CameraWhiteBalance {
-        public final float temp;
-        public final float r;
-        public final float g;
-        public final float b;
-        public final float g1;
-        public CameraWhiteBalance(float temp, float r, float g, float b, float g1) {
-            this.temp = temp;
-            this.r = r;
-            this.g = g;
-            this.b = b;
-            this.g1 = g1;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            CameraWhiteBalance that = (CameraWhiteBalance) o;
-            return Float.compare(temp, that.temp) == 0 && Float.compare(r, that.r) == 0 && Float.compare(g, that.g) == 0 && Float.compare(b, that.b) == 0 && Float.compare(g1, that.g1) == 0;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(temp, r, g, b, g1);
-        }
-    }
 
     public static LibRaw newInstance() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -152,33 +127,39 @@ public class LibRaw implements AutoCloseable {
     }
 
     /**
-     * Get a list of out-of-camera white balance multipliers. To set these, call setUserMul
-     * with the r, g, b, g1 values. Results may have color temp in kelvin attached or not,
-     * depending on what data is included in the raw file.
-     *
-     * @return a list of {@link CameraWhiteBalance} objects representing the camera's preset white
-     * balance values
+     * getAvailableWhiteBalanceCoefficients filters out unfilled values in getWhiteBalanceCoefficients
+     * @return an array of non-zero white balance coefficients
      */
-    public List<CameraWhiteBalance> getCameraWhiteBalanceMultipliers() {
-        final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
-        final ArrayList<CameraWhiteBalance> wbList = new ArrayList<>();
-        if (tempCoefficients != null) {
-            for (final float[] row : tempCoefficients) {
-                if (row[0] != 0) {
-                    wbList.add(new CameraWhiteBalance(row[0], row[1], row[2], row[3], row[4]));
-                }
-            }
-        }
+    public List<int[]> getAvailableWhiteBalanceCoefficients() {
+        final ArrayList<int[]> wbList = new ArrayList<>();
         final int[][] noTempCoefficients = getWhiteBalanceCoefficients();
         if (noTempCoefficients != null) {
             for (final int[] row : noTempCoefficients) {
                 // Only skip if _all_ values are zero
                 if (!(row[0] == 0 && row[1] == 0 && row[2] == 0 && row[3] == 0)) {
-                    wbList.add(new CameraWhiteBalance(0, (float) row[0], (float)  row[1], (float) row[2], (float) row[3]));
+                    wbList.add(row);
                 }
             }
         }
 
+        return wbList;
+    }
+
+    /**
+     * getAvailableWhiteBalanceCtCoefficients filters out unfilled values in getWhiteBalanceCoefficients
+     * and places them in a map.
+     * @return a map of color temperature in kelvin to white balance coefficients
+     */
+    public Map<Float, float[]> getAvailableWhiteBalanceCtCoefficients() {
+        final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
+        final HashMap<Float, float[]> wbList = new HashMap<>();
+        if (tempCoefficients != null) {
+            for (final float[] row : tempCoefficients) {
+                if (row[0] != 0) {
+                    wbList.put(row[0], Arrays.copyOfRange(row, 1, row.length));
+                }
+            }
+        }
         return wbList;
     }
 

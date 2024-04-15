@@ -84,16 +84,11 @@ extern "C" JNIEXPORT jfloatArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_g
 
 extern "C" JNIEXPORT jobjectArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_getWhiteBalanceCoefficientsWithTemps(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
-    int elementSize = sizeof(libRaw->imgdata.color.WBCT_Coeffs[0][0]);
-    int firstRowSize = sizeof(libRaw->imgdata.color.WBCT_Coeffs[0]) / elementSize;
-    const int arraySize = sizeof(libRaw->imgdata.color.WBCT_Coeffs) / elementSize / firstRowSize;
-    const int subarraySize = firstRowSize;
+    const int arraySize = 64;
+    const int subarraySize = 5;
     auto initial = env->NewFloatArray(subarraySize);
 
     auto floatArrayClass = env->FindClass("[F");
-    if (floatArrayClass == nullptr) {
-        return nullptr;
-    }
     auto outerArray = env->NewObjectArray(arraySize, floatArrayClass, initial);
     for (int i=0; i < arraySize; i++) {
         auto floatArray = env->NewFloatArray(subarraySize);
@@ -108,20 +103,15 @@ extern "C" JNIEXPORT jobjectArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_
 
 extern "C" JNIEXPORT jobjectArray JNICALL Java_com_homesoft_photo_libraw_LibRaw_getWhiteBalanceCoefficients(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
-    int elementSize = sizeof(libRaw->imgdata.color.WB_Coeffs[0][0]);
-    int firstRowSize = sizeof(libRaw->imgdata.color.WB_Coeffs[0]) / elementSize;
-    const int arraySize = sizeof(libRaw->imgdata.color.WB_Coeffs) / firstRowSize / elementSize;
-    const int subarraySize = firstRowSize;
+    const int arraySize = 256;
+    const int subarraySize = 4;
     auto initial = env->NewIntArray(subarraySize);
 
     auto intArrayClass = env->FindClass("[I");
-    if (intArrayClass == nullptr) {
-        return nullptr;
-    }
     auto outerArray = env->NewObjectArray(arraySize, intArrayClass, initial);
     for (int i=0; i < arraySize; i++) {
         auto intArray = env->NewIntArray(subarraySize);
-        // color temp, r, g, b, g1
+        // r, g1, b, g2
         env->SetIntArrayRegion(intArray, 0, subarraySize, libRaw->imgdata.color.WB_Coeffs[i]);
         env->SetObjectArrayElement(outerArray, i, intArray);
         env->DeleteLocalRef(intArray);
