@@ -149,7 +149,7 @@ public class LibRaw implements AutoCloseable {
      * and places them in a map.
      * @return a Map of color temperature in kelvin to white balance coefficients
      */
-    public Map<Float, float[]> getAvailableWhiteBalanceCtCoefficients() {
+    public Map<Float, float[]> getAvailableWhiteBalanceCoefficientsWithTemps() {
         final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
         final HashMap<Float, float[]> wbList = new HashMap<>();
         if (tempCoefficients != null) {
