@@ -10,6 +10,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/java/com/tssystems/Libraw.java
@@ -120,6 +125,43 @@ public class LibRaw implements AutoCloseable {
         return b;
     }
 
+    /**
+     * getAvailableWhiteBalanceCoefficients filters out unfilled values in getWhiteBalanceCoefficients
+     * @return a List of non-zero white balance coefficients
+     */
+    public List<int[]> getAvailableWhiteBalanceCoefficients() {
+        final ArrayList<int[]> wbList = new ArrayList<>();
+        final int[][] noTempCoefficients = getWhiteBalanceCoefficients();
+        if (noTempCoefficients != null) {
+            for (final int[] row : noTempCoefficients) {
+                // Only skip if _all_ values are zero
+                if (!(row[0] == 0 && row[1] == 0 && row[2] == 0 && row[3] == 0)) {
+                    wbList.add(row);
+                }
+            }
+        }
+
+        return wbList;
+    }
+
+    /**
+     * getAvailableWhiteBalanceCtCoefficients filters out unfilled values in getWhiteBalanceCoefficients
+     * and places them in a map.
+     * @return a Map of color temperature in kelvin to white balance coefficients
+     */
+    public Map<Float, float[]> getAvailableWhiteBalanceCoefficientsWithTemps() {
+        final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
+        final HashMap<Float, float[]> wbList = new HashMap<>();
+        if (tempCoefficients != null) {
+            for (final float[] row : tempCoefficients) {
+                if (row[0] != 0) {
+                    wbList.put(row[0], Arrays.copyOfRange(row, 1, row.length));
+                }
+            }
+        }
+        return wbList;
+    }
+
     public native long init(int flags);
 
     /**
@@ -144,6 +186,10 @@ public class LibRaw implements AutoCloseable {
     public native int getRightMargin();
     public native int getOrientation(); // NOT the same as EXIF orientation
 
+    public native float[] getCameraMul();
+
+    public native float[][] getWhiteBalanceCoefficientsWithTemps();
+    public native int[][] getWhiteBalanceCoefficients();
     /**
      * Get a bitmap for the current image
      * @return
