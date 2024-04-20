@@ -7,7 +7,7 @@ android {
     //ndkVersion "22.1.7171670"
     //Required for __fp16 support
     //ndkVersion "23.0.7599858"
-    //Required for __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__
+    //Required for ANDROID_WEAK_API_DEFS
     ndkVersion "26.3.11579264"
     defaultConfig {
         //Has to be 24 for 64-bit functions
