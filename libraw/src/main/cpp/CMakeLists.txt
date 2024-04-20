@@ -49,7 +49,6 @@ target_link_libraries( # Specifies the target library.
                        # included in the NDK.
                        ${log-lib} )
 add_subdirectory(LibRaw-cmake)
-add_subdirectory(androidraw26)
 
 target_link_libraries(androidraw libraw::libraw)
 
