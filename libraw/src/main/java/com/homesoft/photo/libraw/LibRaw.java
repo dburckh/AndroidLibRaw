@@ -2,6 +2,7 @@ package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.hardware.HardwareBuffer;
 import android.os.Build;
 import android.system.ErrnoException;
 import android.util.Log;
@@ -41,13 +42,11 @@ public class LibRaw implements AutoCloseable {
 
     long mNativeContext;
 
+    /**
+     * @deprecated Just create LibRaw directly
+     */
     public static LibRaw newInstance() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            //Works with 26, but we can't do anything useful until 29.
-            return new LibRaw26();
-        } else {
-            return new LibRaw();
-        }
+        return new LibRaw();
     }
 
     public static int toDegrees(final int orientation) {
@@ -105,10 +104,16 @@ public class LibRaw implements AutoCloseable {
         return decodeBitmap(options);
     }
 
+    /**
+     * Basic call with some reasonable defaults
+     * @param options Supports {@link BitmapFactory.Options#inPreferredConfig} = [{@link Bitmap.Config#ARGB_8888} | {@link Bitmap.Config#RGBA_F16}]
+     *                {@link BitmapFactory.Options#inSampleSize} anything >= 2 means half size {@link #setHalfSize(boolean)}
+     * @return A {@link Bitmap} with a {@link Bitmap.Config} of {@link Bitmap.Config#HARDWARE} for
+     * API >= 29 or {@link BitmapFactory.Options#inPreferredConfig} specified in {@param options}
+     * @throws ErrnoException if a LibRaw error occurs
+     */
     public Bitmap decodeBitmap(BitmapFactory.Options options) throws ErrnoException {
-        //setQuality(12);
         setQuality(3);
-        //Android only supports sRGB
         setHalfSize(options != null && options.inSampleSize >= 2);
         final int rc = dcrawProcess();
         if (rc != 0) {
@@ -116,9 +121,17 @@ public class LibRaw implements AutoCloseable {
         }
         final Bitmap b;
         if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
-            return getBitmap();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                b = getHardwareBitmap(HardwareBuffer.RGB_888);
+            } else {
+                b = getBitmap();
+            }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
-            b = getBitmap16();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                b= getHardwareBitmap(HardwareBuffer.RGBA_FP16);
+            } else {
+                b = getBitmap16();
+            }
         } else {
             throw new UnsupportedOperationException("Bitamp.Config must be ARGB_8888 or RGBA_F16");
         }
@@ -127,21 +140,19 @@ public class LibRaw implements AutoCloseable {
 
     /**
      * getAvailableWhiteBalanceCoefficients filters out unfilled values in getWhiteBalanceCoefficients
-     * @return a List of non-zero white balance coefficients
+     * @return a Map of non-zero white balance coefficients keyed by EXIF.LightSource type
      */
-    public List<int[]> getAvailableWhiteBalanceCoefficients() {
-        final ArrayList<int[]> wbList = new ArrayList<>();
+    public Map<Integer, int[]> getAvailableWhiteBalanceCoefficients() {
+        final HashMap<Integer, int[]> map = new HashMap<>();
         final int[][] noTempCoefficients = getWhiteBalanceCoefficients();
-        if (noTempCoefficients != null) {
-            for (final int[] row : noTempCoefficients) {
-                // Only skip if _all_ values are zero
-                if (!(row[0] == 0 && row[1] == 0 && row[2] == 0 && row[3] == 0)) {
-                    wbList.add(row);
-                }
+        for (int i=0;i<noTempCoefficients.length;i++) {
+            final int[] row = noTempCoefficients[i];
+            // Only skip if _all_ values are zero
+            if (!(row[0] == 0 && row[1] == 0 && row[2] == 0 && row[3] == 0)) {
+                map.put(i, row);
             }
         }
-
-        return wbList;
+        return map;
     }
 
     /**
@@ -152,11 +163,9 @@ public class LibRaw implements AutoCloseable {
     public Map<Float, float[]> getAvailableWhiteBalanceCoefficientsWithTemps() {
         final float[][] tempCoefficients = getWhiteBalanceCoefficientsWithTemps();
         final HashMap<Float, float[]> wbList = new HashMap<>();
-        if (tempCoefficients != null) {
-            for (final float[] row : tempCoefficients) {
-                if (row[0] != 0) {
-                    wbList.put(row[0], Arrays.copyOfRange(row, 1, row.length));
-                }
+        for (final float[] row : tempCoefficients) {
+            if (row[0] != 0) {
+                wbList.put(row[0], Arrays.copyOfRange(row, 1, row.length));
             }
         }
         return wbList;
@@ -188,7 +197,9 @@ public class LibRaw implements AutoCloseable {
 
     public native float[] getCameraMul();
 
+    @NonNull
     public native float[][] getWhiteBalanceCoefficientsWithTemps();
+    @NonNull
     public native int[][] getWhiteBalanceCoefficients();
     /**
      * Get a bitmap for the current image
@@ -210,11 +221,21 @@ public class LibRaw implements AutoCloseable {
     public native void setCameraWhiteBalance(boolean cameraWhiteBalance);
     public native void setCaptureScaleMul(boolean capture);
     public native void setGamma(double g1,double g2);
+
+    /**
+     * If the image should be decoded with it's dimensions halved.
+     * See libraw_output_params_t.half_size
+     */
     public native void setHalfSize(boolean halfSize);
     public native void setHighlightMode(int highlightMode);
     public native void setOrientation(int orientation);
     public native void setOutputColorSpace(int colorSpace);
     public native void setOutputBps(int outputBps);
+
+    /**
+     * Interpolation Quality
+     * See libraw_output_params_t.user_qual for a full list
+     */
     public native void setQuality(int quality);
     public native void setUserBlack(int userBlack);
     public native void setUseCameraMatrix(int useCameraMatrix); // 0 = off, 1 = if auto whitebalance, 3 = always
@@ -236,6 +257,21 @@ public class LibRaw implements AutoCloseable {
 
     public native ByteBuffer getColorCurve();
 
+    @RequiresApi(26)
+    private native boolean drawHardwareBuffer(HardwareBuffer hardwareBuffer);
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private Bitmap getHardwareBitmap(int format) {
+        final HardwareBuffer hardwareBuffer = HardwareBuffer.create(getWidth(), getHeight(), format,
+                1, HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE| HardwareBuffer.USAGE_CPU_WRITE_RARELY);
+        if (drawHardwareBuffer(hardwareBuffer)) {
+            final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
+            hardwareBuffer.close();
+            return bitmap;
+        } else {
+            return null;
+        }
+    }
     @Override
     protected void finalize() throws Throwable {
         super.finalize();

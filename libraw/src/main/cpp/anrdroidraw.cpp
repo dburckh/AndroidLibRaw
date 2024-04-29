@@ -2,6 +2,9 @@
 #include "LibRaw_fd_datastream.h"
 #include <jni.h>
 #include <android/log.h>
+#include <android/hardware_buffer_jni.h>
+#include <../common.h>
+
 /**
  * Derived from https://github.com/TSGames/Libraw-Android/blob/master/app/src/main/ndk/Libraw_Open/jni/libraw/libraw.c
  */
@@ -257,4 +260,21 @@ extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_drawSurf
 extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getColorCurve(JNIEnv* env, jobject jLibRaw) {
     auto libRaw = getLibRaw(env, jLibRaw);
     return libRaw->getColorCurve(env);
+}
+extern "C"
+JNIEXPORT jboolean JNICALL Java_com_homesoft_photo_libraw_LibRaw_drawHardwareBuffer(JNIEnv* env, jobject jLibRaw, jobject jHardwareBuffer) {
+    if (__builtin_available(android 26, *)) {
+        auto hardwareBuffer = AHardwareBuffer_fromHardwareBuffer(env, jHardwareBuffer);
+        if (hardwareBuffer != nullptr) {
+            AHardwareBuffer_Desc desc;
+            AHardwareBuffer_describe(hardwareBuffer, &desc);
+            void* bufferPtr;
+            auto libRaw = getLibRaw(env, jLibRaw);
+            RET_CHECK(AHardwareBuffer_lock(hardwareBuffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY, -1, nullptr, &bufferPtr));
+            libRaw->copyImage(desc.width, desc.height, desc.stride, desc.format, bufferPtr);
+            AHardwareBuffer_unlock(hardwareBuffer, nullptr);
+            return true;
+        }
+    }
+    return false;
 }
