@@ -233,6 +233,16 @@ public class LibRaw implements AutoCloseable {
     public native void setOutputBps(int outputBps);
 
     /**
+     *  Controls FBDD noise reduction before demosaic.
+     *  See libraw_output_params_t.fbdd_noiserd
+     *
+     * @param mode  0 - do not use FBDD noise reduction
+     *              1 - light FBDD reduction
+     *              2 (and more) - full FBDD reduction
+     */
+    public native void setFbddNoiseReduction(int mode);
+
+    /**
      * Interpolation Quality
      * See libraw_output_params_t.user_qual for a full list
      */
