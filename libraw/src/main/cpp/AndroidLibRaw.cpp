@@ -43,7 +43,7 @@ AndroidLibRaw* getLibRaw(JNIEnv* env, jobject jLibRaw) {
 AndroidLibRaw::AndroidLibRaw(unsigned int flags):LibRaw(flags) {
 }
 
-jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, const char* configName, int32_t configType, const std::function<void (void*, int const)>& _copy) {
+jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmapConfig, const std::function<void (void*, int const)>& _copy) {
     if (imgdata.idata.colors != COLORS) {
         __android_log_print(ANDROID_LOG_ERROR,"libraw","expected 3 colors, got %i", P1.colors);
         return nullptr;
@@ -55,7 +55,6 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, const char* configName, int32_t 
     int width = imgdata.sizes.iwidth;
     int height = imgdata.sizes.iheight;
 
-    jobject bitmapConfig = getConfigByName(env, configName);
     jobject bitmap = createBitmap(env, bitmapConfig, width, height);
     void* addrPtr;
     AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
@@ -64,22 +63,33 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, const char* configName, int32_t 
     return bitmap;
 }
 
-jobject AndroidLibRaw::getBitmap(JNIEnv* env) {
-    return doGetBitmap(env, "ARGB_8888", ANDROID_BITMAP_FORMAT_RGBA_8888, [this](void* bitmapPtr, int const pixels) {
-        auto ptr = (unsigned char*)bitmapPtr;
-        for(int pixel=0; pixel < pixels;pixel++) {
-            PIXEL8A_LOOP
-        }
-    });
-}
-
-jobject AndroidLibRaw::getBitmap16(JNIEnv *env) {
-    return doGetBitmap(env, "RGBA_F16", ANDROID_BITMAP_FORMAT_RGBA_F16, [this](void* bitmapPtr, int const pixels) {
-        auto ptr = (__fp16 *) bitmapPtr;
-        for (int pixel = 0; pixel < pixels; pixel++) {
-            PIXEL16_LOOP
-        }
-    });
+jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmapConfig) {
+    auto bitmapConfigClass = env->GetObjectClass(bitmapConfig);
+    auto nameId = env->GetMethodID(bitmapConfigClass, "name", "()Ljava/lang/String;");
+    jstring jName = static_cast<jstring>(env->CallObjectMethod(bitmapConfig, nameId));
+    auto cName = env->GetStringUTFChars(jName, JNI_FALSE);
+    jobject bitmap;
+    if (strcmp("ARGB_8888", cName) == 0) {
+        bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
+            auto ptr = (unsigned char*)bitmapPtr;
+            for(int pixel=0; pixel < pixels;pixel++) {
+                PIXEL8A_LOOP
+            }
+        });
+    } else if (strcmp("RGBA_F16", cName) == 0) {
+        bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
+            auto ptr = (__fp16 *) bitmapPtr;
+            for (int pixel = 0; pixel < pixels; pixel++) {
+                PIXEL16_LOOP
+            }
+        });
+    } else {
+        auto exceptionClass = env->FindClass("java/lang/IllegalArgumentException");
+        env->ThrowNew(exceptionClass, cName);
+        bitmap = nullptr;
+    }
+    env->ReleaseStringUTFChars(jName, cName);
+    return bitmap;
 }
 
 void AndroidLibRaw::buildColorCurve() {

@@ -157,8 +157,8 @@ class MainFragment : Fragment() {
                                     }
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
-                                        //Dont' decode the second one, just get a bitmap
-                                        hdrBitmap = it.bitmap16
+                                        //Don't decode the second one, just get a bitmap
+                                        hdrBitmap = it.getBitmap(Bitmap.Config.RGBA_F16)
                                     } else {
                                         hdrBitmap = null
                                     }

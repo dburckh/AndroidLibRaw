@@ -243,15 +243,10 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_homesoft_photo_libraw_LibRaw_getCa
     return result;
 }
 
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap(JNIEnv* env, jobject jLibRaw) {
+extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getMutableBitmap(JNIEnv* env, jobject jLibRaw, jobject bitmapConfig) {
     auto libRaw = getLibRaw(env, jLibRaw);
-    return libRaw->getBitmap(env);
+    return libRaw->getBitmap(env, bitmapConfig);
 }
-extern "C" JNIEXPORT jobject JNICALL Java_com_homesoft_photo_libraw_LibRaw_getBitmap16(JNIEnv* env, jobject jLibRaw) {
-    auto libRaw = getLibRaw(env, jLibRaw);
-    return libRaw->getBitmap16(env);
-}
-
 extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_drawSurface(JNIEnv* env, jobject jLibRaw, jobject surface) {
     auto libRaw = getLibRaw(env, jLibRaw);
     return libRaw->drawSurface(env, surface);
