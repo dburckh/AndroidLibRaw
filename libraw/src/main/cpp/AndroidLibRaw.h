@@ -18,8 +18,8 @@ public:
     void setCaptureScaleMul(bool capture);
     void buildColorCurve();
     int dcrawProcessForced(JNIEnv* env, jobject colorCurve);
+    jobject createBitmap(JNIEnv *env, jobject config, jint width, jint height);
     static jobject getConfigByName(JNIEnv* env, const char* name);
-    static jobject createBitmap(JNIEnv *env, jobject config, jint width, jint height);
 
 protected:
     void scale_colors_loop(float scale_mul[4]) override;

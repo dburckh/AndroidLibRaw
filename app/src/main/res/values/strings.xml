@@ -16,9 +16,26 @@
     <string-array name="colorSpaceValues">
         <item>0</item>
         <item>1</item>
+        <item>2</item>
+        <!--item>3</item-->
+        <item>4</item>
+        <!--item>5</item-->
+        <!--item>6</item-->
+        <item>7</item>
+        <item>8</item>
     </string-array>
     <string-array name="colorSpaceNames">
-        <item>RAW</item>
+        <item>Disabled</item>
         <item>sRGB</item>
+        <item>Adobe</item>
+        <!-- Not sure how to convert this as the data range is not [0-1]-->
+        <!--item>Wide RGB D65</item-->
+        <item>ProPhoto</item>
+        <!-- Not sure how to convert this as the data range is not [0-1]-->
+        <!--item>XYZ</item-->
+        <!-- Not sure how to convert this as the data range is not [0-1]-->
+        <!--item>ACES</item-->
+        <item>DCI-P3 D65</item>
+        <item>Rec. 2020</item>
     </string-array>
 </resources>

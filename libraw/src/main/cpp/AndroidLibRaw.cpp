@@ -12,23 +12,33 @@
 #define O  imgdata.params
 #define C  imgdata.color
 #define IO libraw_internal_data.internal_output_params
-#define SHORT2FLOAT 65535.0f;
+
+#define SHORT2FLOAT 65535.0f
 #define COLORS 3
-#define PIXEL8_LOOP \
+#define CURVE_SIZE 0x10000
+#define CURVE8 \
+    unsigned char curve[CURVE_SIZE]; \
+    for (int i=0;i<CURVE_SIZE;i++) { \
+        curve[i] = imgdata.color.curve[i] >> 8; \
+    } \
+
+#define CURVE16 \
+    __fp16 curve[CURVE_SIZE]; \
+    for (int i=0;i<CURVE_SIZE;i++) { \
+        curve[i] = imgdata.color.curve[i] / SHORT2FLOAT; \
+    } \
+
+#define PIXEL_LOOP \
     for (int c=0;c<COLORS;c++) { \
-    *ptr = imgdata.color.curve[imgdata.image[pixel][c]] >> 8; \
+        *ptr = curve[imgdata.image[pixel][c]]; \
         ptr++; \
     }  \
 
-#define PIXEL8A_LOOP PIXEL8_LOOP \
+#define PIXEL8A_LOOP PIXEL_LOOP \
     *ptr = 0xff; \
     ptr++; \
 
-#define PIXEL16_LOOP \
-    for (int c = 0; c < COLORS; c++) { \
-        *ptr = imgdata.color.curve[imgdata.image[pixel][c]] / SHORT2FLOAT; \
-        ptr++; \
-    } \
+#define PIXEL16A_LOOP PIXEL_LOOP \
     *ptr = 1.0; \
     ptr++; \
 
@@ -72,6 +82,7 @@ jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmapConfig) {
     if (strcmp("ARGB_8888", cName) == 0) {
         bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
             auto ptr = (unsigned char*)bitmapPtr;
+            CURVE8
             for(int pixel=0; pixel < pixels;pixel++) {
                 PIXEL8A_LOOP
             }
@@ -79,8 +90,9 @@ jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmapConfig) {
     } else if (strcmp("RGBA_F16", cName) == 0) {
         bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
             auto ptr = (__fp16 *) bitmapPtr;
+            CURVE16
             for (int pixel = 0; pixel < pixels; pixel++) {
-                PIXEL16_LOOP
+                PIXEL16A_LOOP
             }
         });
     } else {
@@ -135,9 +147,19 @@ jobject AndroidLibRaw::getConfigByName(JNIEnv* env, const char* name) {
 
 jobject AndroidLibRaw::createBitmap(JNIEnv* env, jobject config, jint width, jint height) {
     jclass clBitmap = env->FindClass("android/graphics/Bitmap");
-    jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
-                                                       "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-    return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config);
+    if (android_get_device_api_level() >= 26 && imgdata.params.output_color != 1) {
+        auto midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
+                                                           "(IILandroid/graphics/Bitmap$Config;ZLandroid/graphics/ColorSpace;)Landroid/graphics/Bitmap;");
+        auto classLibRaw = env->FindClass("com/homesoft/photo/libraw/LibRaw");
+        auto midGetColorSpace = env->GetStaticMethodID(classLibRaw, "getColorSpace",
+                                                       "(I)Landroid/graphics/ColorSpace;");
+        auto colorSpace = env->CallStaticObjectMethod(classLibRaw, midGetColorSpace, imgdata.params.output_color);
+        return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config, false, colorSpace);
+    } else {
+        jmethodID midCreateBitmap = env->GetStaticMethodID(clBitmap, "createBitmap",
+                                                           "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+        return env->CallStaticObjectMethod(clBitmap, midCreateBitmap, width, height, config);
+    }
 }
 
 void AndroidLibRaw::setCaptureScaleMul(bool capture) {
@@ -192,11 +214,12 @@ int AndroidLibRaw::copyImage(uint32_t width, uint32_t height, uint32_t stride, u
     if (format == AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM) {
         auto skip = (stride - width) * 3;
         auto ptr = static_cast<unsigned char *>(bufferPtr);
+        CURVE8
         uint32_t pixel = 0;
         while (pixel < pixels) {
             auto rowEnd = pixel + width;
             while (pixel < rowEnd) {
-                PIXEL8_LOOP
+                PIXEL_LOOP
                 pixel++;
             }
             ptr += skip;
@@ -205,11 +228,12 @@ int AndroidLibRaw::copyImage(uint32_t width, uint32_t height, uint32_t stride, u
     } else if (format == AHARDWAREBUFFER_FORMAT_R16G16B16A16_FLOAT) {
         auto skip = (stride - width) * 4;
         auto ptr = static_cast<__fp16 *>(bufferPtr);
+        CURVE16
         uint32_t pixel = 0;
         while (pixel < pixels) {
             auto rowEnd = pixel + width;
             while (pixel < rowEnd) {
-                PIXEL16_LOOP
+                PIXEL16A_LOOP
                 pixel++;
             }
             ptr += skip;

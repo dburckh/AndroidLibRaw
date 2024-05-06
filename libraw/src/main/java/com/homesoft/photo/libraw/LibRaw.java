@@ -2,6 +2,7 @@ package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ColorSpace;
 import android.hardware.HardwareBuffer;
 import android.os.Build;
 import android.system.ErrnoException;
@@ -33,11 +34,15 @@ public class LibRaw implements AutoCloseable {
     public static final int USE_CAMERA_MATRIX_DEFAULT = 1; //Use camera matrix if useCameraWhiteBalance is set
     public static final int USE_CAMERA_MATRIX_ALWAYS = 3;
 
-    private static int COLORSPACE_RAW=0;
-    private static int COLORSPACE_SRGB=1;
-    private static int COLORSPACE_ADOBE=2;
-    private static int COLORSPACE_WIDE_GAMUT=3;
-    private static int COLORSPACE_PRO_PHOTO=4;
+    public static final int COLORSPACE_RAW=0;
+    public static final int COLORSPACE_SRGB=1;
+    public static final int COLORSPACE_ADOBE=2;
+    public static final int COLORSPACE_WIDE_GAMUT=3;
+    public static final int COLORSPACE_PRO_PHOTO=4;
+    public static final int COLORSPACE_XYZ=5;
+    public static final int COLORSPACE_ACES=6;
+    public static final int COLORSPACE_DCI_P3=7;
+    public static final int COLORSPACE_REC_2020=8;
 
     long mNativeContext;
 
@@ -228,6 +233,7 @@ public class LibRaw implements AutoCloseable {
     public native void setHalfSize(boolean halfSize);
     public native void setHighlightMode(int highlightMode);
     public native void setOrientation(int orientation);
+    public native int getOutputColorSpace();
     public native void setOutputColorSpace(int colorSpace);
     public native void setOutputBps(int outputBps);
 
@@ -280,6 +286,27 @@ public class LibRaw implements AutoCloseable {
         }
     }
 
+
+    /**
+     * Map the LibRaw color space id the to the Android {@link ColorSpace}
+     * This is called by C
+     * @param colorSpaceId
+     * @return
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    @Nullable
+    public static ColorSpace getColorSpace(int colorSpaceId) {
+        return switch (colorSpaceId) {
+            case COLORSPACE_SRGB -> ColorSpace.get(ColorSpace.Named.SRGB);
+            case COLORSPACE_ADOBE -> ColorSpace.get(ColorSpace.Named.ADOBE_RGB);
+            case COLORSPACE_PRO_PHOTO -> ColorSpace.get(ColorSpace.Named.PRO_PHOTO_RGB);
+            //case COLORSPACE_ACES -> ColorSpace.get(ColorSpace.Named.ACES);
+            case COLORSPACE_DCI_P3 -> ColorSpace.get(ColorSpace.Named.DISPLAY_P3);
+            case COLORSPACE_REC_2020 -> ColorSpace.get(ColorSpace.Named.BT2020);
+            default -> null;
+        };
+    }
+
     /**
      * Return a {@link Bitmap.Config#HARDWARE} {@link Bitmap}.
      * Requires the image has already been loaded and decoded.
@@ -292,7 +319,8 @@ public class LibRaw implements AutoCloseable {
         if (hardwareBuffer == null) {
             return null;
         }
-        final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
+        final ColorSpace colorSpace = getColorSpace(getOutputColorSpace());
+        final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, colorSpace);
         hardwareBuffer.close();
         return bitmap;
     }

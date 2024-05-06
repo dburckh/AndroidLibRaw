@@ -154,6 +154,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCamer
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setCancelFlag(JNIEnv* env, jobject jLibRaw){
     getLibRaw(env, jLibRaw)->setCancelFlag();
 }
+extern "C" JNIEXPORT jint JNICALL Java_com_homesoft_photo_libraw_LibRaw_getOutputColorSpace(JNIEnv* env, jobject jLibRaw) {
+    return getLibRaw(env, jLibRaw)->imgdata.params.output_color;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputColorSpace(JNIEnv* env, jobject jLibRaw,jint space){
     getLibRaw(env, jLibRaw)->imgdata.params.output_color=space;
 }
