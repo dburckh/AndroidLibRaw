@@ -15,8 +15,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         colorSpacePref = findPreference(PREF_COLOR_SPACE)!!
+        updateColorSpace(getColorSpaceId(requireContext()))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            updateColorSpace(getColorSpaceId(requireContext()))
             colorSpacePref.setOnPreferenceChangeListener {_, newValue ->
                 if (newValue is String) {
                     updateColorSpace(newValue)
