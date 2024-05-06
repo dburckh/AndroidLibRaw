@@ -163,6 +163,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHighl
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setOutputBps(JNIEnv* env, jobject jLibRaw,jint output_bps){
     getLibRaw(env, jLibRaw)->imgdata.params.output_bps=output_bps;
 }
+extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setFbddNoiseReduction(JNIEnv* env, jobject jLibRaw, jint mode){
+    getLibRaw(env, jLibRaw)->imgdata.params.fbdd_noiserd=mode;
+}
 extern "C" JNIEXPORT void JNICALL Java_com_homesoft_photo_libraw_LibRaw_setHalfSize(JNIEnv* env, jobject jLibRaw,jboolean half_size){
     getLibRaw(env, jLibRaw)->imgdata.params.half_size=half_size;
 }
