@@ -10,6 +10,7 @@
         android:theme="@style/Theme.AndroidLibraw">
         <activity
             android:name=".MainActivity"
+            android:colorMode="wideColorGamut"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

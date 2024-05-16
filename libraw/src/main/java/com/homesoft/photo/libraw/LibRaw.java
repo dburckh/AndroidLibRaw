@@ -2,19 +2,19 @@ package com.homesoft.photo.libraw;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ColorSpace;
 import android.hardware.HardwareBuffer;
 import android.os.Build;
 import android.system.ErrnoException;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,11 +34,15 @@ public class LibRaw implements AutoCloseable {
     public static final int USE_CAMERA_MATRIX_DEFAULT = 1; //Use camera matrix if useCameraWhiteBalance is set
     public static final int USE_CAMERA_MATRIX_ALWAYS = 3;
 
-    private static int COLORSPACE_RAW=0;
-    private static int COLORSPACE_SRGB=1;
-    private static int COLORSPACE_ADOBE=2;
-    private static int COLORSPACE_WIDE_GAMUT=3;
-    private static int COLORSPACE_PRO_PHOTO=4;
+    public static final int COLORSPACE_RAW=0;
+    public static final int COLORSPACE_SRGB=1;
+    public static final int COLORSPACE_ADOBE=2;
+    public static final int COLORSPACE_WIDE_GAMUT=3;
+    public static final int COLORSPACE_PRO_PHOTO=4;
+    public static final int COLORSPACE_XYZ=5;
+    public static final int COLORSPACE_ACES=6;
+    public static final int COLORSPACE_DCI_P3=7;
+    public static final int COLORSPACE_REC_2020=8;
 
     long mNativeContext;
 
@@ -119,23 +123,8 @@ public class LibRaw implements AutoCloseable {
         if (rc != 0) {
             throw new ErrnoException("cdrawProccess", rc);
         }
-        final Bitmap b;
-        if (options == null || options.inPreferredConfig == Bitmap.Config.ARGB_8888) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                b = getHardwareBitmap(HardwareBuffer.RGB_888);
-            } else {
-                b = getBitmap();
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && options.inPreferredConfig == Bitmap.Config.RGBA_F16) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                b= getHardwareBitmap(HardwareBuffer.RGBA_FP16);
-            } else {
-                b = getBitmap16();
-            }
-        } else {
-            throw new UnsupportedOperationException("Bitamp.Config must be ARGB_8888 or RGBA_F16");
-        }
-        return b;
+        final Bitmap.Config config = options == null ? Bitmap.Config.ARGB_8888 : options.inPreferredConfig;
+        return getBitmap(config);
     }
 
     /**
@@ -203,11 +192,26 @@ public class LibRaw implements AutoCloseable {
     public native int[][] getWhiteBalanceCoefficients();
     /**
      * Get a bitmap for the current image
-     * @return
+     * @deprecated Use {@link #getBitmap(Bitmap.Config)}
      */
-    public native Bitmap getBitmap();
+    public Bitmap getBitmap() {
+        return getBitmap(Bitmap.Config.ARGB_8888);
+    }
+    /**
+     * Get a bitmap for the current image
+     * @deprecated Use {@link #getBitmap(Bitmap.Config)}
+     */
     @RequiresApi(26)
-    public native Bitmap getBitmap16();
+    public Bitmap getBitmap16() {
+        return getBitmap(Bitmap.Config.RGBA_F16);
+    }
+    /**
+     * Return a mutable {@link Bitmap}.
+     * Requires that {@link #open(String)} or similar and {@link #dcrawProcess()} have been called.
+     * @param bitmapConfig Currently only {@link Bitmap.Config#ARGB_8888}
+     *                     and {@link Bitmap.Config#RGBA_F16}
+     */
+    public native Bitmap getMutableBitmap(Bitmap.Config bitmapConfig) throws IllegalArgumentException;
 
     public native void setCropBox(int left, int top, int width, int height);
     public native void setAutoScale(boolean autoScale);
@@ -229,6 +233,7 @@ public class LibRaw implements AutoCloseable {
     public native void setHalfSize(boolean halfSize);
     public native void setHighlightMode(int highlightMode);
     public native void setOrientation(int orientation);
+    public native int getOutputColorSpace();
     public native void setOutputColorSpace(int colorSpace);
     public native void setOutputBps(int outputBps);
 
@@ -270,16 +275,88 @@ public class LibRaw implements AutoCloseable {
     @RequiresApi(26)
     private native boolean drawHardwareBuffer(HardwareBuffer hardwareBuffer);
 
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private Bitmap getHardwareBitmap(int format) {
+    /**
+     * Decode to a HardwareBuffer
+     * @param format must be {@link HardwareBuffer#RGB_888} or {@link HardwareBuffer#RGBA_FP16}
+     * @return null if no image is available
+     */
+    @RequiresApi(26)
+    @Nullable
+    public HardwareBuffer getHardwareBuffer(int format) {
+        if (format != HardwareBuffer.RGB_888 && format != HardwareBuffer.RGBA_FP16) {
+            throw new IllegalArgumentException("Unsupported format: " + format);
+        }
         final HardwareBuffer hardwareBuffer = HardwareBuffer.create(getWidth(), getHeight(), format,
                 1, HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE| HardwareBuffer.USAGE_CPU_WRITE_RARELY);
         if (drawHardwareBuffer(hardwareBuffer)) {
-            final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, null);
-            hardwareBuffer.close();
-            return bitmap;
+            return hardwareBuffer;
         } else {
+            hardwareBuffer.close();
             return null;
+        }
+    }
+
+
+    /**
+     * Map the LibRaw color space id the to the Android {@link ColorSpace}
+     * This is called by C
+     * @param colorSpaceId
+     * @return
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    @Nullable
+    public static ColorSpace getColorSpace(int colorSpaceId) {
+        return switch (colorSpaceId) {
+            case COLORSPACE_SRGB -> ColorSpace.get(ColorSpace.Named.SRGB);
+            case COLORSPACE_ADOBE -> ColorSpace.get(ColorSpace.Named.ADOBE_RGB);
+            case COLORSPACE_PRO_PHOTO -> ColorSpace.get(ColorSpace.Named.PRO_PHOTO_RGB);
+            //case COLORSPACE_ACES -> ColorSpace.get(ColorSpace.Named.ACES);
+            case COLORSPACE_DCI_P3 -> ColorSpace.get(ColorSpace.Named.DISPLAY_P3);
+            case COLORSPACE_REC_2020 -> ColorSpace.get(ColorSpace.Named.BT2020);
+            default -> null;
+        };
+    }
+
+    /**
+     * Return a {@link Bitmap.Config#HARDWARE} {@link Bitmap}.
+     * Requires the image has already been loaded and decoded.
+     * @param format must be {@link HardwareBuffer#RGB_888} or {@link HardwareBuffer#RGBA_FP16}
+     */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    @Nullable
+    public Bitmap getHardwareBitmap(int format) {
+        final HardwareBuffer hardwareBuffer = getHardwareBuffer(format);
+        if (hardwareBuffer == null) {
+            return null;
+        }
+        final ColorSpace colorSpace = getColorSpace(getOutputColorSpace());
+        final Bitmap bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, colorSpace);
+        hardwareBuffer.close();
+        return bitmap;
+    }
+
+    /**
+     * Return a {@link Bitmap} in the most efficient form.
+     * Requires that {@link #open(String)} or similar and {@link #dcrawProcess()} have been called.
+     * Note: {@link Bitmap.Config#ARGB_8888} is returned as {@link HardwareBuffer#RGB_888}
+     *
+     * @param bitmapConfig Currently only {@link Bitmap.Config#ARGB_8888}
+     *                     and {@link Bitmap.Config#RGBA_F16}
+     * @return <code>null</code> if the image has not been loaded
+     */
+    public Bitmap getBitmap(Bitmap.Config bitmapConfig) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            switch (bitmapConfig) {
+                case ARGB_8888 -> {
+                    return getHardwareBitmap(HardwareBuffer.RGB_888);
+                }
+                case RGBA_F16 -> {
+                    return getHardwareBitmap(HardwareBuffer.RGBA_FP16);
+                }
+                default -> throw new IllegalArgumentException("Bitmap.Config must be ARGB_8888 or RGBA_F16");
+            }
+        } else {
+            return getMutableBitmap(bitmapConfig);
         }
     }
     @Override
