@@ -6,7 +6,7 @@ plugins {
 ext {
     groupId = 'com.homesoft.android'
     artifactId = 'libraw'
-    artifactVersion = '2.0.5'
+    artifactVersion = '2.0.7'
 }
 task clean(type: Delete) {
     delete rootProject.buildDir
