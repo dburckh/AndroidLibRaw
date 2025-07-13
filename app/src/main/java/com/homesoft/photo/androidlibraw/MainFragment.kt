@@ -146,8 +146,8 @@ class MainFragment : Fragment() {
                                 val autoWhiteBalance = prefs.getBoolean("autoWhiteBalance", context.resources.getBoolean(R.bool.defaultAutoWhiteBalance))
                                 libRaw.setCameraWhiteBalance(true)
                                 libRaw.setAutoWhiteBalance(autoWhiteBalance)
-                                val colorSpace = prefs.getString("colorSpace", context.resources.getString(R.string.defaultColorSpace))
-                                libRaw.setOutputColorSpace(colorSpace!!.toInt())
+                                val colorSpace = SettingsFragment.getColorSpaceId(context)
+                                libRaw.setOutputColorSpace(colorSpace.toInt())
                                 libRaw.use {
                                     orientation = it.orientation
                                     opts.inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -157,8 +157,8 @@ class MainFragment : Fragment() {
                                     }
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
-                                        //Dont' decode the second one, just get a bitmap
-                                        hdrBitmap = it.bitmap16
+                                        //Don't decode the second one, just get a bitmap
+                                        hdrBitmap = it.getBitmap(Bitmap.Config.RGBA_F16)
                                     } else {
                                         hdrBitmap = null
                                     }
