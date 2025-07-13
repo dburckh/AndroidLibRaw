@@ -37,6 +37,13 @@ Most of the code I did for this was either glue or tweaking of somebody else wor
 - [LibRaw-Android](https://github.com/TSGames/Libraw-Android) Ground breaking "glue" code I borrowed heavily from.
 
 ### Change Log
+2.0.6
+- Faster image processing
+- Extend ColorSpace support
+- White Balance coeffients by Exif.LightSource and Temperature
+- Update Libraw to 0.21.2
+- getBitmap() rework
+
 2.0.5
 - Update Libraw to 0.21.1
 - Migrate build to Jitpack.io
