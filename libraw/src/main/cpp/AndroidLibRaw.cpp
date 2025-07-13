@@ -53,7 +53,7 @@ AndroidLibRaw* getLibRaw(JNIEnv* env, jobject jLibRaw) {
 AndroidLibRaw::AndroidLibRaw(unsigned int flags):LibRaw(flags) {
 }
 
-jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmapConfig, const std::function<void (void*, int const)>& _copy) {
+jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmapConfig, void (AndroidLibRaw::*copyPtr)(void*, int)) {
     if (imgdata.idata.colors != COLORS) {
         __android_log_print(ANDROID_LOG_ERROR,"libraw","expected 3 colors, got %i", P1.colors);
         return nullptr;
@@ -68,9 +68,23 @@ jobject AndroidLibRaw::doGetBitmap(JNIEnv* env, jobject bitmapConfig, const std:
     jobject bitmap = createBitmap(env, bitmapConfig, width, height);
     void* addrPtr;
     AndroidBitmap_lockPixels(env,bitmap, &addrPtr);
-    _copy(addrPtr, width * height);
+    (*this.*copyPtr)(addrPtr, width * height);
     AndroidBitmap_unlockPixels(env,bitmap);
     return bitmap;
+}
+void AndroidLibRaw::copy8(void *bitmapPtr, const int pixels) {
+    auto ptr = (unsigned char*)bitmapPtr;
+    CURVE8
+    for(int pixel=0; pixel < pixels;pixel++) {
+        PIXEL8A_LOOP
+    }
+}
+void AndroidLibRaw::copy16(void *bitmapPtr, const int pixels) {
+    auto ptr = (__fp16 *) bitmapPtr;
+    CURVE16
+    for (int pixel = 0; pixel < pixels; pixel++) {
+        PIXEL16A_LOOP
+    }
 }
 
 jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmapConfig) {
@@ -80,21 +94,9 @@ jobject AndroidLibRaw::getBitmap(JNIEnv* env, jobject bitmapConfig) {
     auto cName = env->GetStringUTFChars(jName, JNI_FALSE);
     jobject bitmap;
     if (strcmp("ARGB_8888", cName) == 0) {
-        bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
-            auto ptr = (unsigned char*)bitmapPtr;
-            CURVE8
-            for(int pixel=0; pixel < pixels;pixel++) {
-                PIXEL8A_LOOP
-            }
-        });
+        bitmap = doGetBitmap(env, bitmapConfig, &AndroidLibRaw::copy8);
     } else if (strcmp("RGBA_F16", cName) == 0) {
-        bitmap = doGetBitmap(env, bitmapConfig,  [this](void* bitmapPtr, int const pixels) {
-            auto ptr = (__fp16 *) bitmapPtr;
-            CURVE16
-            for (int pixel = 0; pixel < pixels; pixel++) {
-                PIXEL16A_LOOP
-            }
-        });
+        bitmap = doGetBitmap(env, bitmapConfig, &AndroidLibRaw::copy16);
     } else {
         auto exceptionClass = env->FindClass("java/lang/IllegalArgumentException");
         env->ThrowNew(exceptionClass, cName);
@@ -128,9 +130,14 @@ void AndroidLibRaw::buildColorCurve() {
 
 jobject AndroidLibRaw::getColorCurve(JNIEnv* env) {
     auto size = sizeof imgdata.color.curve;
-    void* c = malloc(size);
-    memcpy(c, imgdata.color.curve, size);
-    return env->NewDirectByteBuffer(c, size);
+    auto byteBufferClass = env->FindClass("java/nio/ByteBuffer");
+    auto allocateDirectMethod = env->GetStaticMethodID(byteBufferClass, "allocateDirect", "(I)Ljava/nio/ByteBuffer;");
+    auto byteBuffer = env->CallStaticObjectMethod(byteBufferClass, allocateDirectMethod, (jint)size);
+    if (byteBuffer) {
+        auto c = env->GetDirectBufferAddress(byteBuffer);
+        memcpy(c, imgdata.color.curve, size);
+    }
+    return byteBuffer;
 }
 void AndroidLibRaw::setColorCurve(JNIEnv *env, jobject byteBuffer) {
     auto c = env->GetDirectBufferAddress(byteBuffer);

@@ -18,16 +18,19 @@ public:
     void setCaptureScaleMul(bool capture);
     void buildColorCurve();
     int dcrawProcessForced(JNIEnv* env, jobject colorCurve);
-    jobject createBitmap(JNIEnv *env, jobject config, jint width, jint height);
     static jobject getConfigByName(JNIEnv* env, const char* name);
+    jobject createBitmap(JNIEnv *env, jobject config, jint width, jint height);
 
 protected:
     void scale_colors_loop(float scale_mul[4]) override;
 
 private:
     float* mScaleMul = nullptr;
-    jobject doGetBitmap(JNIEnv* env, jobject bitmapConfig, const std::function<void (void* bitmapPtr, int const pixels)>& _copy);
+    // Normally this would be done with std::function, but I'm trying to avoid pulling in the STL
+    jobject doGetBitmap(JNIEnv* env, jobject bitmapConfig, void (AndroidLibRaw::*copyPtr)(void*, int));
 
+    void copy8(void* bitmapPtr, int pixels);
+    void copy16(void* bitmapPtr, int pixels);
     static void preScaleCallback(void *libRaw);
 };
 
