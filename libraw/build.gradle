@@ -3,16 +3,16 @@ plugins {
     id 'maven-publish'
 }
 android {
-    compileSdk 34
+    compileSdk 36
     //ndkVersion "22.1.7171670"
     //Required for __fp16 support
     //ndkVersion "23.0.7599858"
     //Required for ANDROID_WEAK_API_DEFS
-    ndkVersion "26.3.11579264"
+    //ndkVersion "26.3.11579264"
     defaultConfig {
         //Has to be 24 for 64-bit functions
         minSdk 24
-        targetSdk 34
+        targetSdk 36
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -21,6 +21,8 @@ android {
                 arguments "-DLIBRAW_PATH=${projectDir}/src/main/cpp/LibRaw/",
                         "-DANDROID_WEAK_API_DEFS=ON",
                         "-Werror=unguarded-availability",
+                        // Remove for NDK 28+
+                        "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
                         // You can manually include openMP by renaming jniLibsBak to jniLibs and commenting the entry below.
                         // I noticed no performance increase, so I disabled it to reduce APK size
                         // Also, the openMP build is broken, so it seems like it's fate.
@@ -77,7 +79,6 @@ publishing {
 }
 
 dependencies {
-    implementation 'androidx.annotation:annotation:1.7.1'
+    implementation 'androidx.annotation:annotation:1.9.1'
     testImplementation 'junit:junit:4.+'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
 }
