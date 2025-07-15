@@ -37,6 +37,10 @@ Most of the code I did for this was either glue or tweaking of somebody else wor
 - [LibRaw-Android](https://github.com/TSGames/Libraw-Android) Ground breaking "glue" code I borrowed heavily from.
 
 ### Change Log
+2.0.7
+- Update Libraw to 0.21.2
+- 16K Page Support
+
 2.0.6
 - Faster image processing
 - Extend ColorSpace support
